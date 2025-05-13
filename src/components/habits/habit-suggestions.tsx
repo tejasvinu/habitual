@@ -9,16 +9,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Skeleton } from "@/components/ui/skeleton";
 import { suggestHabits, type SuggestHabitsOutput } from '@/ai/flows/suggest-habits';
-import type { Habit } from '@/lib/types'; // Import Habit type
-import { AddHabitDialog } from '@/components/habits/add-habit-dialog'; // Import AddHabitDialog
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import type { Habit } from '@/lib/types';
+import { AddHabitDialog } from '@/components/habits/add-habit-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface HabitSuggestionsProps {
-    existingHabits: Habit[]; // Pass existing habits to avoid duplicates
+    existingHabits: Habit[];
+    userId: string; // Add userId prop
 }
 
-export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
+export function HabitSuggestions({ existingHabits, userId }: HabitSuggestionsProps) {
   const [suggestions, setSuggestions] = React.useState<SuggestHabitsOutput['suggestions']>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -29,32 +30,36 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
 
 
   const fetchSuggestions = React.useCallback(async () => {
+    if (!userId) { // Don't fetch if no user
+        setSuggestions([]);
+        setError(null);
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     setError(null);
-    setSuggestions([]); // Clear previous suggestions
+    setSuggestions([]); 
 
     try {
        const existingNames = existingHabits.map(h => h.name);
+       // Potentially pass userId to suggestHabits in future if AI flow is updated
        const result = await suggestHabits({ existingHabitNames: existingNames });
        setSuggestions(result.suggestions);
     } catch (err) {
       console.error("Failed to fetch habit suggestions:", err);
       let errorMessage = "Could not get suggestions right now.";
-       if (err instanceof Error) {
-           errorMessage = `${errorMessage} (${err.message})`;
-       }
+       if (err instanceof Error) errorMessage = `${errorMessage} (${err.message})`;
       setError(errorMessage);
-      setSuggestions([]); // Ensure suggestions are cleared on error
+      setSuggestions([]); 
     } finally {
       setIsLoading(false);
     }
-  }, [existingHabits]); // Depend on existingHabits
+  }, [existingHabits, userId]); // Add userId to dependency array
 
-  // Fetch suggestions on initial load or when retried
   React.useEffect(() => {
-      fetchSuggestions();
+      if (userId) fetchSuggestions(); // Fetch only if userId is present
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerFetch]); // Triggered by retry button
+  }, [triggerFetch, userId]); // Add userId to dependency for initial fetch with user
 
   const handleRetry = () => {
       setError(null);
@@ -66,17 +71,14 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
      setIsAddHabitDialogOpen(true);
    };
 
-   // Reset habit name when dialog closes
    React.useEffect(() => {
-     if (!isAddHabitDialogOpen) {
-       setHabitNameToAdd("");
-     }
+     if (!isAddHabitDialogOpen) setHabitNameToAdd("");
    }, [isAddHabitDialogOpen]);
 
 
   return (
     <>
-      <Card className="h-full flex flex-col"> {/* Ensure card takes height */}
+      <Card className="h-full flex flex-col">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <div className="space-y-1.5">
             <CardTitle className="text-lg font-semibold flex items-center">
@@ -93,34 +95,20 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
                    Retry
               </Button>
            )}
-           {isLoading && (
-               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-           )}
+           {isLoading && ( <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> )}
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col justify-center"> {/* Center content vertically */}
+        <CardContent className="flex-grow flex flex-col justify-center">
            {isLoading && (
               <div className="space-y-4 mt-2">
-                 <div className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full mt-1" />
-                    <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-5 w-3/5" />
-                        <Skeleton className="h-4 w-full" />
+                 {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full mt-1" />
+                        <div className="flex-1 space-y-1.5">
+                            <Skeleton className="h-5 w-3/5" />
+                            <Skeleton className="h-4 w-full" />
+                        </div>
                     </div>
-                 </div>
-                  <div className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full mt-1" />
-                    <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-5 w-2/5" />
-                        <Skeleton className="h-4 w-4/5" />
-                    </div>
-                 </div>
-                  <div className="flex items-start gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full mt-1" />
-                    <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-5 w-4/6" />
-                        <Skeleton className="h-4 w-full" />
-                    </div>
-                 </div>
+                 ))}
               </div>
             )}
           {!isLoading && error && (
@@ -151,6 +139,7 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => handleAddSuggestion(suggestion.name)}
                       aria-label={`Add habit ${suggestion.name}`}
+                      disabled={!userId} // Disable if no user
                     >
                        <PlusCircle className="h-4 w-4 text-primary" />
                     </Button>
@@ -159,169 +148,27 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
             </div>
           )}
            {!isLoading && !error && suggestions.length === 0 && (
-              <p className="text-sm text-muted-foreground mt-2 text-center">No suggestions available right now.</p>
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                  {userId ? "No suggestions available right now. Try refreshing!" : "Log in to get habit ideas."}
+              </p>
            )}
         </CardContent>
-         <CardContent className="pt-2 pb-4 text-center"> {/* Add padding */}
-             <Button variant="outline" size="sm" onClick={fetchSuggestions} disabled={isLoading}>
+         <CardContent className="pt-2 pb-4 text-center">
+             <Button variant="outline" size="sm" onClick={fetchSuggestions} disabled={isLoading || !userId}>
                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                  Get New Ideas
              </Button>
          </CardContent>
       </Card>
 
-       {/* Dialog for adding habit */}
       <AddHabitDialog
         open={isAddHabitDialogOpen}
         onOpenChange={setIsAddHabitDialogOpen}
-        defaultName={habitNameToAdd} // Pass defaultName to AddHabitDialog
+        defaultName={habitNameToAdd}
       >
-         {/* AddHabitDialog now internally handles the form content */}
-         {/* We pass defaultName, and AddHabitDialog uses it in its form */}
-         {/* Empty child needed if AddHabitDialog uses `children` for trigger logic */}
          <span />
       </AddHabitDialog>
     </>
   );
 }
-
-
-// Inner form content to handle pre-filling and submission within the dialog context
-// This assumes AddHabitDialog structure might not directly take default values easily
-// Needs adaptation based on the actual AddHabitDialog implementation
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogClose } from "@/components/ui/dialog"; // Added DialogClose
-import { addHabit } from "@/lib/actions/habits";
-
-
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Habit name must be at least 2 characters.",
-  }).max(50, {
-      message: "Habit name must not exceed 50 characters."
-  }),
-  frequency: z.enum(["daily", "weekly", "monthly"], {
-      required_error: "Please select a frequency.",
-  }),
-});
-
-// This internal component is no longer needed if AddHabitDialog handles the form internally
-// Keeping it commented out for reference or if AddHabitDialog structure changes
-/*
-function AddHabitFormContent({ defaultName, closeDialog }: { defaultName: string; closeDialog: () => void }) {
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const { toast } = useToast();
-
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: {
-        name: defaultName || "",
-        frequency: undefined,
-        },
-    });
-
-     // Update default name if it changes while dialog is open (might not be needed)
-     React.useEffect(() => {
-         form.reset({ name: defaultName, frequency: form.getValues('frequency') });
-     }, [defaultName, form]);
-
-
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        setIsSubmitting(true);
-        try {
-            const formData = new FormData();
-            formData.append('name', values.name);
-            formData.append('frequency', values.frequency);
-
-            const result = await addHabit(formData);
-            if (result.success) {
-                toast({
-                    title: "Habit Added",
-                    description: `"${values.name}" has been added successfully.`,
-                });
-                form.reset();
-                closeDialog(); // Close dialog on success
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Error",
-                    description: result.error || "Failed to add habit.",
-                });
-            }
-        } catch (error) {
-            console.error("Failed to add habit:", error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "An unexpected error occurred.",
-            });
-        } finally {
-        setIsSubmitting(false);
-        }
-    }
-
-    return (
-         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Habit Name</FormLabel>
-                    <FormControl>
-                        <Input placeholder="e.g., Meditate for 10 minutes" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="frequency"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Frequency</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select how often" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                        </SelectContent>
-                     </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                 <DialogFooter>
-                    <DialogClose asChild> // Use DialogClose for Cancel
-                         <Button type="button" variant="outline" disabled={isSubmitting}>
-                             Cancel
-                         </Button>
-                    </DialogClose>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Habit"
-                      )}
-                    </Button>
-                 </DialogFooter>
-            </form>
-        </Form>
-    )
-}
-*/
+// Removed internal AddHabitFormContent as AddHabitDialog handles its own form logic

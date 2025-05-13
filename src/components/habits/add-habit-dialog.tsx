@@ -10,7 +10,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose, // Import DialogClose
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -35,8 +35,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { addHabit } from "@/lib/actions/habits";
-import type { HabitFrequency } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context"; // Import useAuth
 
 
 const formSchema = z.object({
@@ -51,38 +51,30 @@ const formSchema = z.object({
 });
 
 type AddHabitDialogProps = {
-  children?: React.ReactNode; // To allow using it as a wrapper with a custom trigger
+  children?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  // Optional prop to pre-fill the name (e.g., from suggestions)
   defaultName?: string;
 };
 
 
 export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: setControlledOpen, defaultName = "" }: AddHabitDialogProps) {
-   // Internal state for uncontrolled mode
   const [internalOpen, setInternalOpen] = React.useState(false);
-
-  // Determine if controlled or uncontrolled
   const open = controlledOpen ?? internalOpen;
   const onOpenChange = setControlledOpen ?? setInternalOpen;
 
-
-  // Default trigger if no children are provided
   const trigger = children ? React.Children.only(children) : (
      <Button>
         <PlusCircle className="mr-2 h-4 w-4" /> Add Habit
       </Button>
   );
 
-  // Generate a key based on openness and default name to force form reset
-  // when the dialog opens *with a potentially different default name*.
   const formKey = `${open}-${defaultName}`;
 
   return (
      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      {open && ( // Only render content when open to easily reset form state
+      {open && (
         <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
             <DialogTitle>Add New Habit</DialogTitle>
@@ -90,9 +82,8 @@ export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: s
                 Define a new habit you want to track. Click save when you&apos;re done.
             </DialogDescription>
             </DialogHeader>
-            {/* Render form content internally */}
             <AddHabitFormContent
-                key={formKey} // Use key to force re-render/reset form
+                key={formKey}
                 defaultName={defaultName}
                 closeDialog={() => onOpenChange(false)}
             />
@@ -102,9 +93,6 @@ export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: s
   );
 }
 
-
-// --- Internal Form Component ---
-
 interface AddHabitFormContentProps {
     defaultName: string;
     closeDialog: () => void;
@@ -113,6 +101,7 @@ interface AddHabitFormContentProps {
 function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const { toast } = useToast();
+    const { user } = useAuth(); // Get current user
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -122,17 +111,17 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
         },
     });
 
-    // No need for useEffect to reset, key prop handles this now
-    // React.useEffect(() => {
-    //     form.reset({ name: defaultName, frequency: undefined });
-    // }, [defaultName, form]);
-
     async function onSubmit(values: z.infer<typeof formSchema>) {
+        if (!user) {
+            toast({ variant: "destructive", title: "Error", description: "You must be logged in to add a habit." });
+            return;
+        }
         setIsSubmitting(true);
         try {
             const formData = new FormData();
             formData.append('name', values.name);
             formData.append('frequency', values.frequency);
+            formData.append('userId', user.id); // Add userId to formData
 
             const result = await addHabit(formData);
             if (result.success) {
@@ -140,8 +129,8 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
                     title: "Habit Added",
                     description: `"${values.name}" has been added successfully.`,
                 });
-                form.reset(); // Reset form fields
-                closeDialog(); // Close dialog
+                form.reset(); 
+                closeDialog(); 
             } else {
                 toast({
                     variant: "destructive",
@@ -163,7 +152,7 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
 
     return (
          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4"> {/* Removed py-4, added pt-4 */}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
                 <FormField
                 control={form.control}
                 name="name"
@@ -200,13 +189,12 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
                 )}
                 />
                  <DialogFooter>
-                     {/* Use DialogClose for the cancel button */}
                     <DialogClose asChild>
                          <Button type="button" variant="outline" disabled={isSubmitting}>
                             Cancel
                         </Button>
                     </DialogClose>
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button type="submit" disabled={!user || isSubmitting}>
                         {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

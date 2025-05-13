@@ -1,14 +1,16 @@
+
 import type { Habit } from '@/lib/types';
 import { HabitItem } from './habit-item';
-import { SmilePlus } from 'lucide-react'; // For a more engaging empty state
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Keep for consistency if used elsewhere
+import { SmilePlus } from 'lucide-react'; 
 
 interface HabitListProps {
   habits: Habit[];
   currentDate: Date;
+  userId: string; // Add userId prop
+  onHabitClick?: (habit: Habit) => void; // Prop to handle item click
 }
 
-export function HabitList({ habits, currentDate }: HabitListProps) {
+export function HabitList({ habits, currentDate, userId, onHabitClick }: HabitListProps) {
   if (!habits || habits.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 mt-4 border-2 border-dashed rounded-lg bg-card shadow">
@@ -27,7 +29,13 @@ export function HabitList({ habits, currentDate }: HabitListProps) {
   return (
     <div className="space-y-3">
       {habits.map((habit) => (
-        <HabitItem key={habit.id} habit={habit} currentDate={currentDate} />
+        <HabitItem 
+            key={habit.id} 
+            habit={habit} 
+            currentDate={currentDate} 
+            userId={userId} // Pass userId
+            onHabitClick={onHabitClick} // Pass click handler
+        />
       ))}
     </div>
   );

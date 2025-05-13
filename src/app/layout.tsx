@@ -5,18 +5,12 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { SidebarProvider } from '@/components/ui/sidebar'; // Import SidebarProvider
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
+import { AuthProvider } from '@/context/auth-context'; // Import AuthProvider
 
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-geist-sans', // Still assign to --font-geist-sans for compatibility if needed elsewhere
+  variable: '--font-geist-sans', 
 });
-
-// If Geist Mono is specifically needed, keep it, otherwise remove
-// import { Geist_Mono } from 'next/font/google';
-// const geistMono = Geist_Mono({
-//   variable: '--font-geist-mono',
-//   subsets: ['latin'],
-// });
 
 export const metadata: Metadata = {
   title: 'Habitual',
@@ -34,13 +28,14 @@ export default function RootLayout({
         className={cn(
           'min-h-screen bg-background font-sans antialiased',
           inter.variable
-          // geistMono.variable // Include if Geist Mono is used
         )}
       >
-        <SidebarProvider defaultOpen={true}> {/* Wrap content with SidebarProvider */}
-          {children}
-        </SidebarProvider>
-        <Toaster /> {/* Add Toaster for notifications */}
+        <AuthProvider> {/* Wrap with AuthProvider */}
+          <SidebarProvider defaultOpen={true}>
+            {children}
+          </SidebarProvider>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

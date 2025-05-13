@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts';
-import { format, subDays, startOfWeek, addWeeks, isSameWeek } from 'date-fns';
+import { format, subDays, startOfWeek } from 'date-fns'; // Removed addWeeks, isSameWeek as they are not used here
 
 import {
   Card,
@@ -16,8 +16,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
+  // ChartLegend, // Removed unused legend
+  // ChartLegendContent, // Removed unused legend
 } from "@/components/ui/chart";
 import type { Habit, HabitLog } from '@/lib/types';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,94 +26,100 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface HabitProgressChartProps {
     habits: Habit[];
     logs: HabitLog[];
+    userId: string; // Add userId prop for consistency, though not directly used in this component's calculations yet
 }
 
-// Helper to get week label
 const getWeekLabel = (date: Date): string => {
-    const start = startOfWeek(date);
-    return `Wk ${format(start, 'w')}`; // e.g., Wk 28
+    const start = startOfWeek(date, { weekStartsOn: 0 }); // Specify week starts on Sunday
+    return `Wk ${format(start, 'w')}`; 
 };
 
 
-export function HabitProgressChart({ habits, logs }: HabitProgressChartProps) {
-    const [isLoading, setIsLoading] = React.useState(true); // Manage loading state internally
+export function HabitProgressChart({ habits, logs, userId }: HabitProgressChartProps) {
+    const [isLoading, setIsLoading] = React.useState(true);
 
-    // Calculate weekly completion percentage for all habits combined
     const weeklyCompletionData = React.useMemo(() => {
         setIsLoading(true);
-        if (!habits.length || !logs.length) {
+        if (!userId || !habits.length) { // Check for userId
             setIsLoading(false);
             return [];
         }
 
         const weeklyData: { [weekLabel: string]: { completed: number; total: number } } = {};
-        const totalWeeks = 8; // Show last 8 weeks
+        const totalWeeks = 8; 
         const today = new Date();
+        today.setHours(0,0,0,0); // Normalize today to start of day
 
-        // Initialize last N weeks
         for (let i = totalWeeks - 1; i >= 0; i--) {
-           const weekStartDate = startOfWeek(subDays(today, i * 7));
+           const weekStartDate = startOfWeek(subDays(today, i * 7), { weekStartsOn: 0 });
            const weekLabel = getWeekLabel(weekStartDate);
            weeklyData[weekLabel] = { completed: 0, total: 0 };
         }
 
-
-        // Iterate through each habit and its logs
         habits.forEach(habit => {
-            const habitLogs = logs.filter(log => log.habitId === habit.id);
+            // Filter logs for the current habit AND ensure logs belong to the user (though 'logs' prop should already be filtered)
+            const habitLogs = logs.filter(log => log.habitId === habit.id && log.userId === userId);
+            const habitCreatedAt = new Date(habit.createdAt);
+            habitCreatedAt.setHours(0,0,0,0);
+
 
             for (let i = totalWeeks - 1; i >= 0; i--) {
-                const weekStartDate = startOfWeek(subDays(today, i * 7));
-                const weekLabel = getWeekLabel(weekStartDate);
+                const currentIterationWeekStart = startOfWeek(subDays(today, i * 7), { weekStartsOn: 0 });
+                const weekLabel = getWeekLabel(currentIterationWeekStart);
 
+                // Ensure the habit was created before or during this week's start
+                if (habitCreatedAt > addDays(currentIterationWeekStart, 6)) { // if created after this week ends
+                    continue;
+                }
+                
                 if (habit.frequency === 'daily') {
-                     // For daily habits, count potential completions within the week
                      for(let j = 0; j < 7; j++){
-                         const day = new Date(weekStartDate);
-                         day.setDate(weekStartDate.getDate() + j);
-                         // Only count days after habit creation
-                         if(day >= habit.createdAt) {
+                         const dayInWeek = addDays(currentIterationWeekStart, j);
+                         dayInWeek.setHours(0,0,0,0);
+                         // Only count days from habit creation onwards and within the current week
+                         if(dayInWeek >= habitCreatedAt && dayInWeek <= today) {
                             weeklyData[weekLabel].total += 1;
-                            const dayLog = habitLogs.find(log => isSameWeek(log.date, weekStartDate, {weekStartsOn: 0}) && log.date.getDay() === day.getDay());
+                            const dayLog = habitLogs.find(log => dfIsSameDay(log.date, dayInWeek));
                             if (dayLog?.completed) {
                                 weeklyData[weekLabel].completed += 1;
                             }
                          }
                      }
                 } else if (habit.frequency === 'weekly') {
-                    // For weekly habits, check if created before or during this week
-                    if(startOfWeek(habit.createdAt) <= weekStartDate) {
+                    // Ensure the week we are calculating for is on or after habit creation week
+                    if (currentIterationWeekStart >= startOfWeek(habitCreatedAt, { weekStartsOn: 0 }) && currentIterationWeekStart <= today) {
                          weeklyData[weekLabel].total += 1;
-                         const weekLog = habitLogs.find(log => isSameWeek(log.date, weekStartDate, { weekStartsOn: 0 }));
+                         // Log date for weekly habits should be the start of the week
+                         const weekLog = habitLogs.find(log => dfIsSameDay(log.date, currentIterationWeekStart));
                          if (weekLog?.completed) {
                              weeklyData[weekLabel].completed += 1;
                          }
                     }
                 }
-                 // Monthly habits aggregation is more complex, skipping for this weekly chart example
             }
         });
 
         const chartData = Object.entries(weeklyData).map(([week, data]) => ({
             week,
             completionPercentage: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
-        })).sort((a, b) => { // Ensure correct week order
-             const weekA = parseInt(a.week.split(' ')[1]);
-             const weekB = parseInt(b.week.split(' ')[1]);
-             // Handle year wrap around if necessary, simplified for now
-             return weekA - weekB;
+        })).sort((a, b) => { 
+             const weekNumA = parseInt(a.week.substring(3)); // "Wk 28" -> 28
+             const weekNumB = parseInt(b.week.substring(3));
+             // This simple sort works if all weeks are in the same year or wrap around correctly
+             // For more robust multi-year, a date object comparison for week start would be better.
+             return weekNumA - weekNumB;
         });
 
         setIsLoading(false);
         return chartData;
 
-    }, [habits, logs]);
+    }, [habits, logs, userId]);
 
 
   const chartConfig = {
       completionPercentage: {
         label: "Completion %",
-        color: "hsl(var(--chart-2))", // Use green color
+        color: "hsl(var(--chart-2))", 
       },
     } satisfies import("@/components/ui/chart").ChartConfig;
 
@@ -132,19 +138,34 @@ export function HabitProgressChart({ habits, logs }: HabitProgressChartProps) {
       )
   }
 
-  if (!weeklyCompletionData.length) {
+  if (!weeklyCompletionData.length && !habits.length) { // Modified condition
      return (
             <Card>
                 <CardHeader>
                     <CardTitle>Weekly Progress</CardTitle>
-                    <CardDescription>Completion percentage over the last 8 weeks.</CardDescription>
+                    <CardDescription>Overall completion percentage over the last 8 weeks.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex h-[250px] items-center justify-center">
-                    <p className="text-muted-foreground">No data available to display chart.</p>
+                    <p className="text-muted-foreground">No habits tracked yet. Add some habits to see your progress!</p>
                 </CardContent>
             </Card>
         );
   }
+  
+  if (!weeklyCompletionData.length && habits.length > 0) {
+     return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Weekly Progress</CardTitle>
+                    <CardDescription>Overall completion percentage over the last 8 weeks.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex h-[250px] items-center justify-center">
+                    <p className="text-muted-foreground">Not enough data to display chart. Keep tracking your habits!</p>
+                </CardContent>
+            </Card>
+        );
+  }
+
 
   return (
     <Card>
@@ -162,7 +183,6 @@ export function HabitProgressChart({ habits, logs }: HabitProgressChartProps) {
                         tickLine={false}
                         axisLine={false}
                         tickMargin={8}
-                        // tickFormatter={(value) => value.slice(0, 3)} // Shorten label if needed
                     />
                     <YAxis
                         tickLine={false}
@@ -185,12 +205,13 @@ export function HabitProgressChart({ habits, logs }: HabitProgressChartProps) {
            </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
-       {/* Optional Legend if needed */}
-       {/*
-       <CardFooter>
-         <ChartLegend content={<ChartLegendContent />} />
-       </CardFooter>
-        */}
     </Card>
   );
+}
+
+// Helper to add days to a date
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
