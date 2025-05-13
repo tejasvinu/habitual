@@ -24,53 +24,77 @@ export function HabitItem({ habit, currentDate }: HabitItemProps) {
   const { toast } = useToast();
   const normalizedCurrentDate = startOfDay(currentDate); // Ensure we compare dates consistently
 
+  // Log status changes for debugging
+  React.useEffect(() => {
+    console.log(`Habit ${habit.id} [Status Change]: ${status}, isUpdating: ${isUpdating}, Date: ${normalizedCurrentDate.toISOString()}`);
+  }, [status, habit.id, isUpdating, normalizedCurrentDate]);
+
+
   React.useEffect(() => {
     let isActive = true;
+    console.log(`Habit ${habit.id} [useEffect runs] for date: ${normalizedCurrentDate.toISOString()}`);
+    setStatus('loading'); // Explicitly set to loading when effect runs for new date/id
+
     async function fetchStatus() {
-        setStatus('loading');
         try {
+          console.log(`Habit ${habit.id} [fetchStatus START] for date: ${normalizedCurrentDate.toISOString()}`);
           const completed = await getHabitCompletionStatus(habit.id, normalizedCurrentDate);
           if (isActive) {
-              setStatus(completed === undefined ? 'pending' : completed ? 'completed' : 'pending');
+              const newStatus = completed === undefined ? 'pending' : completed ? 'completed' : 'pending';
+              console.log(`Habit ${habit.id} [fetchStatus SUCCESS] - isActive: true, New status: ${newStatus}`);
+              setStatus(newStatus);
+          } else {
+            console.log(`Habit ${habit.id} [fetchStatus SUCCESS] - isActive: false, Status not set.`);
           }
         } catch (err) {
-          console.error(`Failed to fetch status for habit ${habit.id}:`, err);
+          console.error(`Habit ${habit.id} [fetchStatus ERROR] for date: ${normalizedCurrentDate.toISOString()}`, err);
            if (isActive) {
+             console.log(`Habit ${habit.id} [fetchStatus ERROR] - isActive: true, Setting status to 'error'`);
              setStatus('error');
+           } else {
+            console.log(`Habit ${habit.id} [fetchStatus ERROR] - isActive: false, Status not set.`);
            }
         }
     }
     fetchStatus();
-     return () => { isActive = false; }; // Cleanup function
+     return () => {
+       isActive = false;
+       console.log(`Habit ${habit.id} [useEffect CLEANUP] for date: ${normalizedCurrentDate.toISOString()}`);
+     };
   }, [habit.id, normalizedCurrentDate]);
 
-  const handleRecordCompletion = async (completed: boolean) => {
+  const handleRecordCompletion = async (markCompleted: boolean) => {
+    console.log(`Habit ${habit.id} [handleRecordCompletion START] - Mark as: ${markCompleted}`);
     setIsUpdating(true);
     try {
-      const result = await recordHabit(habit.id, normalizedCurrentDate, completed);
+      const result = await recordHabit(habit.id, normalizedCurrentDate, markCompleted);
       if (result.success) {
-        setStatus(completed ? 'completed' : 'pending');
+        const newStatus = markCompleted ? 'completed' : 'pending';
+        console.log(`Habit ${habit.id} [handleRecordCompletion SUCCESS] - recordHabit success. Setting status to: ${newStatus}`);
+        setStatus(newStatus);
         toast({
-          title: `Habit ${completed ? 'Completed' : 'Marked Pending'}`,
-          description: `"${habit.name}" status updated for today.`,
+          title: `Habit ${markCompleted ? 'Completed' : 'Marked Pending'}`,
+          description: `"${habit.name}" status updated.`,
         });
       } else {
+        console.warn(`Habit ${habit.id} [handleRecordCompletion ERROR] - recordHabit failed: ${result.error}`);
+        setStatus('error');
         toast({
           variant: 'destructive',
           title: 'Error Updating Habit',
           description: result.error || 'Could not update habit status.',
         });
-         setStatus('error'); // Revert status on error? Or keep old one? Keeping old one for now.
       }
     } catch (error) {
-       console.error('Failed to record habit:', error);
+       console.error(`Habit ${habit.id} [handleRecordCompletion CATCH ERROR] - Failed to record habit:`, error);
+       setStatus('error');
        toast({
           variant: 'destructive',
           title: 'Error Updating Habit',
           description: 'An unexpected error occurred.',
        });
-        setStatus('error');
     } finally {
+      console.log(`Habit ${habit.id} [handleRecordCompletion FINALLY] - Setting isUpdating to false.`);
       setIsUpdating(false);
     }
   };
@@ -89,11 +113,11 @@ export function HabitItem({ habit, currentDate }: HabitItemProps) {
    const getButtonIcon = () => {
      if (isUpdating || status === 'loading') return <Loader2 className="h-4 w-4 animate-spin" />;
      if (status === 'completed') return <Check className="h-4 w-4" />;
-     return <Minus className="h-4 w-4" />; // Pending or error uses Minus for consistency
+     return <Minus className="h-4 w-4" />;
    };
 
    const getButtonVariant = () => {
-       if (status === 'completed') return 'secondary'; // Use secondary green color
+       if (status === 'completed') return 'secondary';
        return 'outline';
    }
 
