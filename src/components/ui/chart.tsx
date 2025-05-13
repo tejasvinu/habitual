@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -52,7 +53,7 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
         {...props}
@@ -238,7 +239,7 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && ( // Check for undefined/null
                         <span className="font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
@@ -316,6 +317,40 @@ const ChartLegendContent = React.forwardRef<
 )
 ChartLegendContent.displayName = "ChartLegend"
 
+// New Axis Components
+const ChartYAxis = React.forwardRef<
+  SVGElement,
+  React.ComponentProps<typeof RechartsPrimitive.YAxis>
+>(({ className, ...props }, ref) => (
+  <RechartsPrimitive.YAxis
+    ref={ref}
+    className={cn(
+      "[&_line]:stroke-border/50 [&_text]:fill-muted-foreground", // Basic axis styling
+      className
+    )}
+    {...props}
+  />
+));
+ChartYAxis.displayName = "ChartYAxis";
+
+
+const ChartXAxis = React.forwardRef<
+  SVGElement,
+  React.ComponentProps<typeof RechartsPrimitive.XAxis>
+>(({ className, ...props }, ref) => (
+  <RechartsPrimitive.XAxis
+    ref={ref}
+    className={cn(
+      "[&_line]:stroke-border/50 [&_text]:fill-muted-foreground", // Basic axis styling
+      className
+    )}
+    {...props}
+  />
+));
+ChartXAxis.displayName = "ChartXAxis";
+
+
+
 // Helper to extract item config from a payload.
 function getPayloadConfigFromPayload(
   config: ChartConfig,
@@ -362,4 +397,6 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  ChartXAxis, // Export new component
+  ChartYAxis, // Export new component
 }
