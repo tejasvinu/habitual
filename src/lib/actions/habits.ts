@@ -108,7 +108,7 @@ export async function recordHabit(habitId: string, date: Date, completed: boolea
         return { success: false, error: 'Habit not found.' };
     }
 
-    // Use the start date of the period (day, week, month) as the canonical date for the log
+    // Use the start of the period (day, week, month) as the canonical date for the log
     const periodStartDate = getPeriodStartDate(habit.frequency, date);
 
     // Find if a log already exists for this habit for this specific period start date
@@ -302,4 +302,3 @@ export async function getCurrentStreak(habitId: string): Promise<number> {
 
     return streak;
 }
-```
