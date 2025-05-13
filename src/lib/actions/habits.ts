@@ -142,6 +142,8 @@ export async function getHabitLogs(habitId?: string): Promise<HabitLog[]> {
 }
 
 export async function getHabitCompletionStatus(habitId: string, date: Date): Promise<boolean | undefined> {
+    // Simulate DB fetch delay to make loading states more visible
+    await new Promise(resolve => setTimeout(resolve, 100));
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return undefined;
 
@@ -167,10 +169,12 @@ export async function getCompletionRate(habitId: string, days: number = 30): Pro
     let totalDays = 0;
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        totalDays++;
-        const log = logs.find(l => isSameDay(l.date, d));
-        if (log?.completed) {
-            completedCount++;
+        if (d >= habit.createdAt) { // Only count days from habit creation
+            totalDays++;
+            const log = logs.find(l => isSameDay(l.date, d));
+            if (log?.completed) {
+                completedCount++;
+            }
         }
     }
 
@@ -183,52 +187,41 @@ export async function getCurrentStreak(habitId: string): Promise<number> {
      if (!habit || habit.frequency !== 'daily') return 0; // Simplified: only daily for now
 
     const logs = (await getHabitLogs(habitId))
-        .filter(l => l.completed)
+        .filter(l => l.completed && l.date <= new Date()) // Only completed logs up to today
         .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by most recent completed
+
+    if (!logs.length) return 0;
 
     let streak = 0;
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date
+    today.setHours(0, 0, 0, 0);
 
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
 
-    // Check if completed today or yesterday to start streak count
-    if (!logs.length || (!isSameDay(logs[0].date, today) && !isSameDay(logs[0].date, yesterday)) ) {
-        return 0; // No completion today or yesterday means streak is broken
+    // Check if the most recent log is for today or yesterday
+    const mostRecentLogDate = new Date(logs[0].date);
+    mostRecentLogDate.setHours(0,0,0,0);
+
+    if (!isSameDay(mostRecentLogDate, today) && !isSameDay(mostRecentLogDate, yesterday)) {
+        return 0; // Streak is broken if not completed today or yesterday
     }
 
-    // Start checking from today/yesterday backwards
-    let currentDate = new Date(today);
-    let logIndex = 0;
+    let currentDate = new Date(mostRecentLogDate); // Start from the most recent completed day
 
-    // Adjust starting point if today wasn't logged/completed yet but yesterday was
-     if (!isSameDay(logs[0].date, today) && isSameDay(logs[0].date, yesterday)) {
-         currentDate.setDate(today.getDate() - 1);
-     }
+    for (const log of logs) {
+        const logDate = new Date(log.date);
+        logDate.setHours(0,0,0,0);
 
-
-    while (logIndex < logs.length) {
-        const expectedDate = new Date(currentDate);
-        expectedDate.setHours(0,0,0,0);
-
-        const actualLogDate = new Date(logs[logIndex].date);
-         actualLogDate.setHours(0,0,0,0);
-
-        if (isSameDay(actualLogDate, expectedDate)) {
+        if (isSameDay(logDate, currentDate)) {
             streak++;
-            currentDate.setDate(currentDate.getDate() - 1); // Move to previous day
-            logIndex++;
-        } else if (actualLogDate < expectedDate) {
-            // Missing a day, streak broken
-             break;
-        } else {
-             // Log date is somehow newer than expected date (shouldn't happen with sort)
-             // or multiple logs for same day, skip to next distinct log day
-             logIndex++;
+            currentDate.setDate(currentDate.getDate() - 1); // Expect completion for the previous day
+        } else if (logDate < currentDate) {
+            // A day was missed before this log entry, streak broken before this log
+            break;
         }
+        // If logDate > currentDate, it means multiple logs for the same day or future logs, skip (handled by sorting)
     }
-
-
     return streak;
 }
+
