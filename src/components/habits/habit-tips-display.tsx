@@ -43,11 +43,10 @@ export function HabitTipsDisplay({ habit }: HabitTipsDisplayProps) {
         habitName: habit.name,
         frequency: habit.frequency,
         // Pass null if the value indicates insufficient data (e.g., -1 or null from the action)
-        completionRate: completionRate >= 0 ? completionRate : null,
-        streak: streak >= 0 ? streak : null,
+        completionRate: completionRate !== null && completionRate >= 0 ? completionRate : undefined,
+        streak: streak !== null && streak >= 0 ? streak : undefined,
       };
 
-       // @ts-ignore - Temporary ignore due to potential null type mismatch Zod expects number | undefined
        const result = await generateHabitTips(input);
        setTips(result.tips);
     } catch (err) {
@@ -137,4 +136,3 @@ export function HabitTipsDisplay({ habit }: HabitTipsDisplayProps) {
     </Card>
   );
 }
-```

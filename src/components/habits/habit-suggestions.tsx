@@ -174,28 +174,12 @@ export function HabitSuggestions({ existingHabits }: HabitSuggestionsProps) {
       <AddHabitDialog
         open={isAddHabitDialogOpen}
         onOpenChange={setIsAddHabitDialogOpen}
+        defaultName={habitNameToAdd} // Pass defaultName to AddHabitDialog
       >
-         {/* This AddHabitDialog component needs to be modified slightly
-            to accept default values, or we handle setting the name
-            within its own form state upon opening. Let's assume for now
-            we modify AddHabitDialog or manually set the form value.
-            For simplicity, we'll assume it takes a `defaultName` prop.
-            If not, this interaction needs refinement in AddHabitDialog.
-         */}
-         {/* Placeholder: We pass children to ensure it renders its content */}
-         {/* In a real scenario, you'd likely need to pass `defaultName` prop */}
-         {/* to `AddHabitDialog` and update its useForm defaultValues */}
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Habit</DialogTitle>
-              <DialogDescription>
-                Confirm the details for &quot;{habitNameToAdd}&quot;. Click save when ready.
-              </DialogDescription>
-            </DialogHeader>
-            {/* The form rendering is handled inside AddHabitDialog */}
-            {/* We need to ensure AddHabitDialog can pre-fill the name */}
-             <AddHabitFormContent defaultName={habitNameToAdd} closeDialog={() => setIsAddHabitDialogOpen(false)} />
-          </DialogContent>
+         {/* AddHabitDialog now internally handles the form content */}
+         {/* We pass defaultName, and AddHabitDialog uses it in its form */}
+         {/* Empty child needed if AddHabitDialog uses `children` for trigger logic */}
+         <span />
       </AddHabitDialog>
     </>
   );
@@ -211,9 +195,8 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogContent } from "@/components/ui/dialog"; // Assuming imports
+import { DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogClose } from "@/components/ui/dialog"; // Added DialogClose
 import { addHabit } from "@/lib/actions/habits";
-import { Loader2 } from "lucide-react";
 
 
 const formSchema = z.object({
@@ -227,7 +210,9 @@ const formSchema = z.object({
   }),
 });
 
-
+// This internal component is no longer needed if AddHabitDialog handles the form internally
+// Keeping it commented out for reference or if AddHabitDialog structure changes
+/*
 function AddHabitFormContent({ defaultName, closeDialog }: { defaultName: string; closeDialog: () => void }) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const { toast } = useToast();
@@ -319,9 +304,11 @@ function AddHabitFormContent({ defaultName, closeDialog }: { defaultName: string
                 )}
                 />
                  <DialogFooter>
-                     <Button type="button" variant="outline" onClick={closeDialog} disabled={isSubmitting}>
-                         Cancel
-                     </Button>
+                    <DialogClose asChild> // Use DialogClose for Cancel
+                         <Button type="button" variant="outline" disabled={isSubmitting}>
+                             Cancel
+                         </Button>
+                    </DialogClose>
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (
                         <>
@@ -336,6 +323,5 @@ function AddHabitFormContent({ defaultName, closeDialog }: { defaultName: string
             </form>
         </Form>
     )
-
 }
-```
+*/

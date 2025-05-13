@@ -58,4 +58,3 @@ const suggestHabitsFlow = ai.defineFlow(
     return output ?? { suggestions: [] }; // Provide fallback
   }
 );
-```

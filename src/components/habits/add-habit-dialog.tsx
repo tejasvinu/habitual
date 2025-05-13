@@ -75,6 +75,10 @@ export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: s
       </Button>
   );
 
+  // Generate a key based on openness and default name to force form reset
+  // when the dialog opens *with a potentially different default name*.
+  const formKey = `${open}-${defaultName}`;
+
   return (
      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -88,7 +92,7 @@ export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: s
             </DialogHeader>
             {/* Render form content internally */}
             <AddHabitFormContent
-                key={defaultName || 'new'} // Use key to force re-render/reset form if defaultName changes significantly
+                key={formKey} // Use key to force re-render/reset form
                 defaultName={defaultName}
                 closeDialog={() => onOpenChange(false)}
             />
@@ -118,10 +122,10 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
         },
     });
 
-    // Reset form if defaultName changes (e.g., opening dialog for different suggestion)
-     React.useEffect(() => {
-         form.reset({ name: defaultName, frequency: undefined });
-     }, [defaultName, form]);
+    // No need for useEffect to reset, key prop handles this now
+    // React.useEffect(() => {
+    //     form.reset({ name: defaultName, frequency: undefined });
+    // }, [defaultName, form]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true);
@@ -159,7 +163,7 @@ function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentPr
 
     return (
          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4"> {/* Remove py-4 added pt-4 */}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4"> {/* Removed py-4, added pt-4 */}
                 <FormField
                 control={form.control}
                 name="name"
