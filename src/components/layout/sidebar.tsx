@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListChecks, BarChart3, Sparkles, Settings, Plus } from 'lucide-react';
+import { LayoutDashboard, ListChecks, BarChart3, Sparkles, Settings, Plus, LogIn, UserPlus } from 'lucide-react';
 
 import { cn } from "@/lib/utils";
 import {
@@ -36,6 +36,9 @@ export function AppSidebar() {
      }
    };
 
+  // Placeholder for authentication status, replace with actual auth check
+  const isAuthenticated = false; 
+
   return (
     <>
       <Sidebar>
@@ -64,44 +67,55 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-             <SidebarMenuItem>
-               <AddHabitDialog open={isAddHabitOpen} onOpenChange={setIsAddHabitOpen}>
-                  <SidebarMenuButton
-                    onClick={() => setIsAddHabitOpen(true)}
-                    tooltip="Add New Habit"
-                  >
-                    <Plus />
-                    <span>Add Habit</span>
-                  </SidebarMenuButton>
-                </AddHabitDialog>
-            </SidebarMenuItem>
-
-            {/* Add more links as needed */}
-            {/*
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive={pathname === '/progress'} tooltip="Progress">
-                <Link href="/progress">
-                  <BarChart3 />
-                  <span>Progress</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton isActive={pathname === '/insights'} tooltip="Insights">
-                 <Link href="/insights">
-                  <Sparkles />
-                  <span>Insights</span>
-                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            */}
+            {isAuthenticated && (
+              <SidebarMenuItem>
+                <AddHabitDialog open={isAddHabitOpen} onOpenChange={setIsAddHabitOpen}>
+                    <SidebarMenuButton
+                      onClick={() => setIsAddHabitOpen(true)}
+                      tooltip="Add New Habit"
+                    >
+                      <Plus />
+                      <span>Add Habit</span>
+                    </SidebarMenuButton>
+                  </AddHabitDialog>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
 
         <SidebarFooter className="p-2">
            <Separator className="my-2" />
            <SidebarMenu>
+            {!isAuthenticated && (
+              <>
                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/login'}
+                    tooltip="Login"
+                  >
+                    <Link href="/login" onClick={closeSidebar}>
+                      <LogIn />
+                      <span>Login</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/signup'}
+                    tooltip="Sign Up"
+                  >
+                    <Link href="/signup" onClick={closeSidebar}>
+                      <UserPlus />
+                      <span>Sign Up</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <Separator className="my-2" />
+              </>
+            )}
+              <SidebarMenuItem>
                  <SidebarMenuButton tooltip="Settings">
                    {/* <Link href="/settings"> */}
                      <Settings />
@@ -109,6 +123,7 @@ export function AppSidebar() {
                    {/* </Link> */}
                  </SidebarMenuButton>
                </SidebarMenuItem>
+               {/* TODO: Add Logout button if authenticated */}
             </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
