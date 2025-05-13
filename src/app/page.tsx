@@ -6,6 +6,7 @@ import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { HabitList } from '@/components/habits/habit-list';
 import { HabitProgressChart } from '@/components/habits/habit-progress-chart';
 import { HabitTipsDisplay } from '@/components/habits/habit-tips-display';
+import { HabitSuggestions } from '@/components/habits/habit-suggestions'; // Import suggestions component
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddHabitDialog } from '@/components/habits/add-habit-dialog';
 import { Button } from '@/components/ui/button';
@@ -23,15 +24,17 @@ async function DashboardContent() {
 
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left Column (Habits) */}
-      <div className="lg:w-1/2 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      {/* Left Column (Habits & Suggestions) */}
+      <div className="space-y-6">
         <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Habits</h2>
         <HabitList habits={habits} currentDate={currentDate} />
+        {/* Suggestions Component */}
+        <HabitSuggestions existingHabits={habits} />
       </div>
 
       {/* Right Column (Progress & Tips) */}
-      <div className="lg:w-1/2 space-y-6">
+      <div className="space-y-6">
          <h2 className="text-2xl font-semibold tracking-tight">Insights</h2>
         <HabitProgressChart habits={habits} logs={logs} />
         <HabitTipsDisplay habit={habitForTips} />
@@ -42,23 +45,26 @@ async function DashboardContent() {
 
 function DashboardSkeleton() {
     return (
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* Left Column Skeleton */}
-            <div className="lg:w-1/2 space-y-6">
+            <div className="space-y-6">
                 <Skeleton className="h-8 w-1/2 mb-4" /> {/* Title */}
+                {/* Habit List Skeleton */}
                 <div className="space-y-3">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
                 </div>
+                 {/* Suggestions Skeleton */}
+                 <Skeleton className="h-[280px] w-full rounded-lg" /> {/* Approx height for suggestions card */}
             </div>
             {/* Right Column Skeleton */}
-            <div className="lg:w-1/2 space-y-6">
+            <div className="space-y-6">
                  <Skeleton className="h-8 w-1/3 mb-4" /> {/* Title */}
                  {/* Chart Skeleton */}
-                 <Skeleton className="h-[340px] w-full" />
+                 <Skeleton className="h-[340px] w-full rounded-lg" />
                  {/* Tips Skeleton */}
-                 <Skeleton className="h-[200px] w-full" />
+                 <Skeleton className="h-[240px] w-full rounded-lg" /> {/* Approx height for tips card */}
             </div>
         </div>
     )
@@ -74,6 +80,7 @@ export default function DashboardPage() {
           <h1 className="flex-1 text-xl font-semibold tracking-tight">Dashboard</h1>
            {/* Add Habit Button for smaller screens or as primary action */}
            <div className="ml-auto">
+             {/* Pass children to AddHabitDialog to use custom trigger */}
              <AddHabitDialog>
                <Button size="sm">
                  <PlusCircle className="mr-1.5 h-4 w-4" />

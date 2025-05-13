@@ -10,6 +10,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose, // Import DialogClose
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -53,62 +54,21 @@ type AddHabitDialogProps = {
   children?: React.ReactNode; // To allow using it as a wrapper with a custom trigger
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // Optional prop to pre-fill the name (e.g., from suggestions)
+  defaultName?: string;
 };
 
 
-export function AddHabitDialog({ children, open, onOpenChange }: AddHabitDialogProps) {
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { toast } = useToast();
+export function AddHabitDialog({ children, open: controlledOpen, onOpenChange: setControlledOpen, defaultName = "" }: AddHabitDialogProps) {
+   // Internal state for uncontrolled mode
+  const [internalOpen, setInternalOpen] = React.useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      frequency: undefined,
-    },
-  });
+  // Determine if controlled or uncontrolled
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = setControlledOpen ?? setInternalOpen;
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
-    try {
-        const formData = new FormData();
-        formData.append('name', values.name);
-        formData.append('frequency', values.frequency);
 
-      const result = await addHabit(formData);
-       if (result.success) {
-          toast({
-            title: "Habit Added",
-            description: `"${values.name}" has been added successfully.`,
-          });
-          form.reset();
-          onOpenChange?.(false); // Close dialog on success
-      } else {
-           toast({
-             variant: "destructive",
-             title: "Error",
-             description: result.error || "Failed to add habit.",
-           });
-      }
-    } catch (error) {
-        console.error("Failed to add habit:", error);
-         toast({
-             variant: "destructive",
-             title: "Error",
-             description: "An unexpected error occurred.",
-           });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  // Handle reset form state when dialog closes/opens
-   React.useEffect(() => {
-     if (!open) {
-       form.reset();
-     }
-   }, [open, form]);
-
+  // Default trigger if no children are provided
   const trigger = children ? React.Children.only(children) : (
      <Button>
         <PlusCircle className="mr-2 h-4 w-4" /> Add Habit
@@ -117,16 +77,89 @@ export function AddHabitDialog({ children, open, onOpenChange }: AddHabitDialogP
 
   return (
      <Dialog open={open} onOpenChange={onOpenChange}>
-      {children && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add New Habit</DialogTitle>
-          <DialogDescription>
-            Define a new habit you want to track. Click save when you&apos;re done.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {open && ( // Only render content when open to easily reset form state
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+            <DialogTitle>Add New Habit</DialogTitle>
+            <DialogDescription>
+                Define a new habit you want to track. Click save when you&apos;re done.
+            </DialogDescription>
+            </DialogHeader>
+            {/* Render form content internally */}
+            <AddHabitFormContent
+                key={defaultName || 'new'} // Use key to force re-render/reset form if defaultName changes significantly
+                defaultName={defaultName}
+                closeDialog={() => onOpenChange(false)}
+            />
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+
+// --- Internal Form Component ---
+
+interface AddHabitFormContentProps {
+    defaultName: string;
+    closeDialog: () => void;
+}
+
+function AddHabitFormContent({ defaultName, closeDialog }: AddHabitFormContentProps) {
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const { toast } = useToast();
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            name: defaultName || "",
+            frequency: undefined,
+        },
+    });
+
+    // Reset form if defaultName changes (e.g., opening dialog for different suggestion)
+     React.useEffect(() => {
+         form.reset({ name: defaultName, frequency: undefined });
+     }, [defaultName, form]);
+
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        setIsSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append('name', values.name);
+            formData.append('frequency', values.frequency);
+
+            const result = await addHabit(formData);
+            if (result.success) {
+                toast({
+                    title: "Habit Added",
+                    description: `"${values.name}" has been added successfully.`,
+                });
+                form.reset(); // Reset form fields
+                closeDialog(); // Close dialog
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: result.error || "Failed to add habit.",
+                });
+            }
+        } catch (error) {
+            console.error("Failed to add habit:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "An unexpected error occurred.",
+            });
+        } finally {
+        setIsSubmitting(false);
+        }
+    }
+
+    return (
+         <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4"> {/* Remove py-4 added pt-4 */}
                 <FormField
                 control={form.control}
                 name="name"
@@ -163,6 +196,12 @@ export function AddHabitDialog({ children, open, onOpenChange }: AddHabitDialogP
                 )}
                 />
                  <DialogFooter>
+                     {/* Use DialogClose for the cancel button */}
+                    <DialogClose asChild>
+                         <Button type="button" variant="outline" disabled={isSubmitting}>
+                            Cancel
+                        </Button>
+                    </DialogClose>
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (
                         <>
@@ -176,8 +215,5 @@ export function AddHabitDialog({ children, open, onOpenChange }: AddHabitDialogP
                  </DialogFooter>
             </form>
         </Form>
-
-      </DialogContent>
-    </Dialog>
-  );
+    )
 }
