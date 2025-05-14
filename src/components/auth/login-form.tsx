@@ -20,13 +20,13 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { SignInSchema, type SignInInput, type User } from '@/lib/auth/schema';
 import { signIn } from '@/lib/auth/actions';
-import { useAuth } from '@/context/auth-context'; // Import useAuth
+import { useAuth } from '@/context/auth-context';
 
 export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { loginUser } = useAuth(); // Get loginUser from AuthContext
+  const { loginUser } = useAuth(); 
 
   const form = useForm<SignInInput>({
     resolver: zodResolver(SignInSchema),
@@ -41,18 +41,17 @@ export function LoginForm() {
     try {
       const result = await signIn(values);
       if (result.success && result.user) {
-        // Cast result.user to User type expected by loginUser
+        // Construct the User object for AuthContext, including points
         const userToLogin: User = {
             id: result.user.id,
             email: result.user.email,
-            // These fields are not returned by signIn action but are part of User schema
-            // For client-side session, only id and email are strictly necessary from signIn result
-            // Set dummy/default values or adjust User type for client session if needed
-            hashedPassword: '', // Not stored client-side
-            createdAt: new Date(), // Placeholder
-            updatedAt: new Date(), // Placeholder
+            points: result.user.points ?? 0, // Include points
+            // These fields are part of the User schema but not all are returned/needed for client session
+            hashedPassword: '', 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
         };
-        loginUser(userToLogin); // Set user in AuthContext
+        loginUser(userToLogin); 
         toast({
           title: 'Signed In!',
           description: `Welcome back, ${result.user.email}!`,
@@ -79,7 +78,7 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4"> {/* Adjusted space-y from 6 to 4 */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="email"
@@ -106,7 +105,7 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full !mt-6" disabled={isSubmitting}> {/* Added !mt-6 for specific spacing */}
+        <Button type="submit" className="w-full !mt-6" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

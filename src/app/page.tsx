@@ -10,6 +10,7 @@ import { HabitList } from '@/components/habits/habit-list';
 import { HabitProgressChart } from '@/components/habits/habit-progress-chart';
 import { HabitTipsDisplay } from '@/components/habits/habit-tips-display';
 import { HabitSuggestions } from '@/components/habits/habit-suggestions';
+import { UserBadgesList } from '@/components/gamification/user-badges-list'; // Import UserBadgesList
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddHabitDialog } from '@/components/habits/add-habit-dialog';
 import { EditHabitDialog } from '@/components/habits/edit-habit-dialog';
@@ -39,6 +40,7 @@ function DashboardSkeleton() {
                 </div>
                  <Skeleton className="h-[300px] w-full rounded-lg" />
                  <Skeleton className="h-[240px] w-full rounded-lg" /> 
+                 <Skeleton className="h-[200px] w-full rounded-lg" /> {/* Skeleton for badges */}
             </div>
         </div>
     );
@@ -53,7 +55,7 @@ export default function DashboardPage() {
   const [selectedHabitForTips, setSelectedHabitForTips] = useState<Habit | null>(null);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); // Used to trigger re-fetch
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
 
   const fetchData = useCallback(async () => {
@@ -65,7 +67,6 @@ export default function DashboardPage() {
           getHabitLogs(user.id)
         ]);
 
-        // Fetch streaks for each habit
         const habitsWithStreaks = await Promise.all(
             userHabitsData.map(async (habit) => {
                 const streak = await getCurrentStreak(user.id, habit.id);
@@ -92,7 +93,7 @@ export default function DashboardPage() {
     } else if (!authIsLoading && !user) {
       setDataIsLoading(false); 
     }
-  }, [user, authIsLoading, selectedHabitForTips?.id]); // Add selectedHabitForTips.id to dependencies to refresh it
+  }, [user, authIsLoading, selectedHabitForTips?.id]); 
 
   useEffect(() => {
     if (!authIsLoading && !user) {
@@ -102,7 +103,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, refreshTrigger]); // Depend on fetchData and refreshTrigger
+  }, [fetchData, refreshTrigger]); 
 
   const handleRefreshData = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -160,6 +161,7 @@ export default function DashboardPage() {
                                     onHabitClick={handleHabitItemClick} 
                                     onEditHabit={handleEditHabit}
                                     onDeleteHabit={handleDeleteHabit}
+                                    onHabitUpdated={handleRefreshData} // Pass refresh handler
                                 />}
                         {user && <HabitSuggestions existingHabits={habits} userId={user.id} />}
                     </div>
@@ -175,6 +177,7 @@ export default function DashboardPage() {
                                 <span>Click on a habit to see personalized tips.</span>
                             </div>
                         )}
+                        {user && <UserBadgesList userId={user.id} refreshTrigger={refreshTrigger} />} {/* Add UserBadgesList */}
                          {!user && habits.length === 0 && !dataIsLoading && ( 
                             <div className="p-6 text-center text-muted-foreground bg-card rounded-lg shadow-sm border border-dashed border-border flex flex-col items-center gap-2">
                                  <Info className="w-6 h-6 text-primary"/>
@@ -221,4 +224,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

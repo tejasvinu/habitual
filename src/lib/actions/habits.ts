@@ -1,3 +1,4 @@
+
 'use server';
 
 import type { Habit, HabitFrequency, HabitLog } from '@/lib/types';
@@ -5,11 +6,11 @@ import { revalidatePath } from 'next/cache';
 import { addDays, isSameDay as dfIsSameDay, startOfMonth, startOfWeek, subDays, format as formatDateFns, getDay } from 'date-fns';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { awardPoints, checkAndAwardBadges, checkAndAwardCreationBadges } from './gamification'; // Import gamification actions
 
 // --- Helper Functions ---
 
 const isSameDay = (date1: Date | number | string, date2: Date | number | string): boolean => {
-    // Ensure dates are Date objects before comparison
     const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
     const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
     return dfIsSameDay(d1, d2);
@@ -20,7 +21,6 @@ const getPeriodStartDate = (frequency: HabitFrequency, date: Date, specificDays?
     const d = new Date(date);
     d.setHours(0, 0, 0, 0); 
     if (frequency === 'weekly' && specificDays && specificDays.length > 0) {
-        // For weekly habits with specific days, the "period" is the day itself if it's a target day
         return d; 
     }
     switch (frequency) {
@@ -48,10 +48,10 @@ export async function getHabits(userId: string): Promise<Habit[]> {
     return userHabitsDocs.map(habitDoc => ({
         id: habitDoc._id.toHexString(),
         userId: habitDoc.userId.toHexString(),
-        name: habitDoc.name,
+        name: habitDoc.name as string, // Cast name to string
         frequency: habitDoc.frequency as HabitFrequency,
         createdAt: new Date(habitDoc.createdAt),
-        specificDays: habitDoc.specificDays || undefined, // Ensure it's undefined if not present
+        specificDays: habitDoc.specificDays || undefined, 
     })) as Habit[];
   } catch (error) {
     console.error("Error fetching habits from MongoDB:", error);
@@ -72,7 +72,7 @@ export async function addHabit(formData: FormData): Promise<{ success: boolean; 
     let specificDays: number[] | undefined = undefined;
     if (frequency === 'weekly' && specificDaysString) {
         specificDays = specificDaysString.split(',').map(Number).filter(n => !isNaN(n) && n >= 0 && n <= 6);
-        if (specificDays.length === 0) specificDays = undefined; // Treat empty array as undefined
+        if (specificDays.length === 0) specificDays = undefined;
     }
 
     try {
@@ -89,6 +89,8 @@ export async function addHabit(formData: FormData): Promise<{ success: boolean; 
         
         if (!result.insertedId) return { success: false, error: "Failed to insert habit into database." };
         
+        await checkAndAwardCreationBadges(userId); // Check for badges related to habit creation count
+
         revalidatePath('/');
         return { success: true, habitId: result.insertedId.toHexString() };
     } catch (error) {
@@ -100,21 +102,20 @@ export async function addHabit(formData: FormData): Promise<{ success: boolean; 
 export async function updateHabit(habitId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
     const name = formData.get('name') as string;
     const frequency = formData.get('frequency') as HabitFrequency;
-    const userId = formData.get('userId') as string; // Assuming userId is passed for verification
+    const userId = formData.get('userId') as string; 
     const specificDaysString = formData.get('specificDays') as string | null;
 
     if (!userId) return { success: false, error: 'User ID is required for update.' };
     if (!name || !frequency) return { success: false, error: 'Name and frequency are required.' };
     if (!['daily', 'weekly', 'monthly'].includes(frequency)) return { success: false, error: 'Invalid frequency.' };
 
-    let specificDaysUpdate: any = { $unset: { specificDays: "" } }; // Default to removing specificDays
+    let specificDaysUpdate: any = { $unset: { specificDays: "" } }; 
     if (frequency === 'weekly' && specificDaysString) {
         const parsedDays = specificDaysString.split(',').map(Number).filter(n => !isNaN(n) && n >= 0 && n <= 6);
         if (parsedDays.length > 0) {
             specificDaysUpdate = { $set: { specificDays: parsedDays } };
         }
     }
-    // If frequency is not weekly, ensure specificDays is removed
     if (frequency !== 'weekly') {
         specificDaysUpdate = { $unset: { specificDays: "" } };
     }
@@ -131,7 +132,7 @@ export async function updateHabit(habitId: string, formData: FormData): Promise<
                     frequency,
                     updatedAt: new Date() 
                 },
-                ...specificDaysUpdate // Apply specificDays update or unset
+                ...specificDaysUpdate 
             }
         );
 
@@ -153,13 +154,10 @@ export async function deleteHabit(habitId: string, userId: string): Promise<{ su
         const habitsCollection = db.collection('habits');
         const habitLogsCollection = db.collection('habitLogs');
 
-        // Ensure the habit belongs to the user before deleting
         const habit = await habitsCollection.findOne({ _id: new ObjectId(habitId), userId: new ObjectId(userId) });
         if (!habit) return { success: false, error: 'Habit not found or user unauthorized.' };
 
-        // Delete the habit
         await habitsCollection.deleteOne({ _id: new ObjectId(habitId), userId: new ObjectId(userId) });
-        // Delete associated logs
         await habitLogsCollection.deleteMany({ habitId: new ObjectId(habitId), userId: new ObjectId(userId) });
         
         revalidatePath('/');
@@ -171,21 +169,29 @@ export async function deleteHabit(habitId: string, userId: string): Promise<{ su
 }
 
 
-export async function recordHabit(userId: string, habitId: string, date: Date, completed: boolean): Promise<{ success: boolean; error?: string }> {
+export async function recordHabit(userId: string, habitId: string, date: Date, completed: boolean): Promise<{ success: boolean; error?: string, awardedBadgeIds?: string[] }> {
     if (!userId) return { success: false, error: 'User ID is required.' };
     
     const db = await getDb();
     const habitsCollection = db.collection('habits');
     const habitLogsCollection = db.collection('habitLogs');
 
-    const habit = await habitsCollection.findOne({ _id: new ObjectId(habitId), userId: new ObjectId(userId) });
-    if (!habit) return { success: false, error: 'Habit not found or does not belong to user.' };
+    const habitDoc = await habitsCollection.findOne({ _id: new ObjectId(habitId), userId: new ObjectId(userId) });
+    if (!habitDoc) return { success: false, error: 'Habit not found or does not belong to user.' };
+    
+    const habit: Habit = {
+        id: habitDoc._id.toHexString(),
+        userId: habitDoc.userId.toHexString(),
+        name: habitDoc.name as string,
+        frequency: habitDoc.frequency as HabitFrequency,
+        createdAt: new Date(habitDoc.createdAt),
+        specificDays: habitDoc.specificDays || undefined,
+    };
 
-    const normalizedDate = new Date(date); // Ensure date is a Date object
+
+    const normalizedDate = new Date(date); 
     normalizedDate.setHours(0,0,0,0);
 
-    // For weekly habits with specific days, the log date is the specific day.
-    // For other frequencies, it's the period start date.
     const logDateKey = (habit.frequency === 'weekly' && habit.specificDays && habit.specificDays.length > 0)
         ? normalizedDate 
         : getPeriodStartDate(habit.frequency as HabitFrequency, normalizedDate);
@@ -211,8 +217,15 @@ export async function recordHabit(userId: string, habitId: string, date: Date, c
                 loggedAt: new Date(),
             });
         }
+
+        let awardedBadgeIds: string[] = [];
+        if (completed) {
+            await awardPoints(userId, 10); // Award 10 points for completion
+            awardedBadgeIds = await checkAndAwardBadges(userId, habit, normalizedDate);
+        }
+
         revalidatePath('/');
-        return { success: true };
+        return { success: true, awardedBadgeIds };
     } catch (error) {
         console.error("Error recording habit to MongoDB:", error);
         return { success: false, error: 'An unexpected error occurred while recording the habit.' };
@@ -346,7 +359,7 @@ export async function getCurrentStreak(userId: string, habitId: string): Promise
     const userLogs = await getHabitLogs(userId, habitId);
     const completedLogs = userLogs
         .filter(l => l.completed)
-        .map(l => { const d = new Date(l.date); d.setHours(0,0,0,0); return d; }) // Normalize dates
+        .map(l => { const d = new Date(l.date); d.setHours(0,0,0,0); return d; }) 
         .sort((a, b) => b.getTime() - a.getTime());
 
     if (!completedLogs.length) return 0;
@@ -356,53 +369,86 @@ export async function getCurrentStreak(userId: string, habitId: string): Promise
     let currentDateToCheck = new Date(today);
 
     if (habit.frequency === 'weekly' && habit.specificDays && habit.specificDays.length > 0) {
-        // Find the most recent target day on or before today
+        
         while (currentDateToCheck >= habit.createdAt && !habit.specificDays.includes(getDay(currentDateToCheck))) {
             currentDateToCheck = subDays(currentDateToCheck, 1);
         }
 
         while (currentDateToCheck >= habit.createdAt) {
-            if (habit.specificDays.includes(getDay(currentDateToCheck))) { // Is it a target day?
+            if (habit.specificDays.includes(getDay(currentDateToCheck))) { 
                 if (completedLogs.some(logDate => isSameDay(logDate, currentDateToCheck))) {
                     streak++;
                 } else {
-                    break; // Streak broken
+                    // Check if the "missed" day is today and it just hasn't been logged yet
+                    // If it's not today, the streak is broken.
+                    if(!isSameDay(currentDateToCheck, today)) {
+                         break; 
+                    }
                 }
             }
             currentDateToCheck = subDays(currentDateToCheck, 1);
-             // Skip to previous target day
             while (currentDateToCheck >= habit.createdAt && !habit.specificDays.includes(getDay(currentDateToCheck))) {
                  currentDateToCheck = subDays(currentDateToCheck, 1);
             }
-        }
-
-    } else { // Daily, generic Weekly, Monthly
-        let expectedLogDate = getPeriodStartDate(habit.frequency, currentDateToCheck);
-        
-        // Adjust for habits that might not have a log for the "current" period yet, but did for the previous
-        const mostRecentCompletedLog = completedLogs[0];
-        if (mostRecentCompletedLog && !isSameDay(mostRecentCompletedLog, expectedLogDate)) {
-             const prevExpected = getPeriodStartDate(habit.frequency, subDays(currentDateToCheck, habit.frequency === 'daily' ? 1 : (habit.frequency === 'weekly' ? 7 : 30))); // Approx for monthly
-             if(isSameDay(mostRecentCompletedLog, prevExpected)) {
-                 expectedLogDate = prevExpected;
-             } else {
-                 return 0; // Most recent log doesn't match current or previous period start
-             }
-        }
-
-
-        for (const logDate of completedLogs) {
-            if (isSameDay(logDate, expectedLogDate)) {
-                streak++;
-                if (habit.frequency === 'daily') expectedLogDate = subDays(expectedLogDate, 1);
-                else if (habit.frequency === 'weekly') expectedLogDate = subDays(expectedLogDate, 7);
-                else { // monthly
-                    expectedLogDate = new Date(expectedLogDate.getFullYear(), expectedLogDate.getMonth() - 1, 1);
-                    expectedLogDate.setHours(0,0,0,0);
+             if(currentDateToCheck < habit.createdAt && habit.specificDays.includes(getDay(habit.createdAt)) && isSameDay(currentDateToCheck, subDays(habit.createdAt,1)) ) {
+                // Edge case: if loop ends exactly one day before creation day which was a target day.
+                // if the habit.createdAt was a target day and was completed, it should count.
+                if (completedLogs.some(logDate => isSameDay(logDate, habit.createdAt))) {
+                    // if already counted, do nothing, otherwise, this logic is complex.
+                    // For now, this path implies the loop correctly terminated.
+                } else {
+                    // If habit.createdAt was a target day but not logged as completed, streak might break here.
+                    // This depends on if streak should start from day 1 or after first successful completion.
+                    // Current logic: streak starts from most recent consecutive completion.
                 }
-            } else {
-                break; // Streak broken or logs are not consecutive according to period
             }
+        }
+
+    } else { 
+        let expectedLogDatePeriodStart = getPeriodStartDate(habit.frequency, currentDateToCheck);
+        
+        const mostRecentCompletedLog = completedLogs[0]; // Already sorted, this is the latest
+        if (mostRecentCompletedLog) {
+            // If the most recent log is not for the current period,
+            // check if it's for the immediately preceding period. If so, start streak check from there.
+            // Otherwise, streak is 0 (or based on current day if it's completed).
+            const currentPeriodIsCompleted = completedLogs.some(logDate => isSameDay(logDate, expectedLogDatePeriodStart));
+
+            if (!currentPeriodIsCompleted) {
+                const previousPeriodStartDate = getPeriodStartDate(habit.frequency, 
+                    habit.frequency === 'daily' ? subDays(currentDateToCheck, 1) :
+                    habit.frequency === 'weekly' ? subDays(currentDateToCheck, 7) :
+                    startOfMonth(subDays(currentDateToCheck, 30)) // Approx for monthly previous
+                );
+                if (isSameDay(mostRecentCompletedLog, previousPeriodStartDate)) {
+                    expectedLogDatePeriodStart = previousPeriodStartDate; // Start checking from this past completed period
+                } else {
+                     // Not current, not previous, so if today isn't completed, streak is 0.
+                    return 0;
+                }
+            }
+        } else { // No completed logs at all
+            return 0;
+        }
+
+
+        for (const logDate of completedLogs) { // Iterates from most recent
+            if (isSameDay(logDate, expectedLogDatePeriodStart)) {
+                streak++;
+                // Decrement expectedLogDatePeriodStart to the start of the previous period
+                if (habit.frequency === 'daily') {
+                    expectedLogDatePeriodStart = subDays(expectedLogDatePeriodStart, 1);
+                } else if (habit.frequency === 'weekly') {
+                    expectedLogDatePeriodStart = subDays(expectedLogDatePeriodStart, 7);
+                } else { // monthly
+                    expectedLogDatePeriodStart = startOfMonth(subDays(expectedLogDatePeriodStart, 1)); // Go to previous month's start
+                }
+                 expectedLogDatePeriodStart.setHours(0,0,0,0);
+            } else if (logDate < expectedLogDatePeriodStart) {
+                // Found an older log that doesn't match the expected sequence. Streak broken before this.
+                break;
+            }
+            // If logDate > expectedLogDatePeriodStart, it means there's a gap, also break. But sorted logs should prevent this.
         }
     }
     return streak;

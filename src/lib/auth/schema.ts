@@ -7,6 +7,7 @@ export const UserSchema = z.object({
   hashedPassword: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  points: z.number().int().min(0).optional().default(0), // Added points for gamification
 });
 export type User = z.infer<typeof UserSchema>;
 

@@ -25,3 +25,27 @@ export interface UserDataExport {
   habits: Habit[];
   logs: HabitLog[];
 }
+
+// Gamification Types
+export interface BadgeDefinition {
+  id: string; // e.g., "first_steps", "daily_streak_7"
+  name: string;
+  description: string;
+  icon: string; // Lucide icon name or SVG path
+  criteria: (params: {
+    userId: string;
+    habit?: Habit; // The habit related to the event, if applicable
+    streak?: number; // Current streak for the related habit
+    habitsCount?: number; // Total number of habits for the user
+    allUserLogs?: HabitLog[]; // All logs for the user
+    completedLogCountForUser?: number; // Total completed logs for the user
+  }) => Promise<boolean> | boolean;
+  points?: number; // Points awarded for this badge
+}
+
+export interface UserBadge {
+  id: string; // document id
+  userId: string; // Stored as string in this type, ObjectId in DB
+  badgeId: string; // Corresponds to BadgeDefinition.id
+  awardedAt: Date;
+}

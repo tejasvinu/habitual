@@ -33,15 +33,13 @@ export async function signUp(input: SignUpInput): Promise<{ success: boolean; er
       hashedPassword,
       createdAt: now,
       updatedAt: now,
+      points: 0, // Initialize points
     });
 
     if (!result.insertedId) {
         return { success: false, error: 'Failed to create user account.' };
     }
     
-    // For now, we're not setting up sessions automatically on signup.
-    // User will need to login separately.
-    // revalidatePath('/'); // Or a specific auth page if relevant
     return { success: true, userId: result.insertedId.toHexString() };
 
   } catch (error) {
@@ -50,7 +48,7 @@ export async function signUp(input: SignUpInput): Promise<{ success: boolean; er
   }
 }
 
-export async function signIn(input: { email: string, password: string }): Promise<{ success: boolean; error?: string; user?: Pick<User, 'id' | 'email'> }> {
+export async function signIn(input: { email: string, password: string }): Promise<{ success: boolean; error?: string; user?: Pick<User, 'id' | 'email' | 'points'> }> {
   const validation = SignInSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, error: validation.error.errors.map(e => e.message).join(', ') };
@@ -60,7 +58,7 @@ export async function signIn(input: { email: string, password: string }): Promis
 
   try {
     const db = await getDb();
-    const usersCollection = db.collection<Omit<User, 'id'> & { _id: ObjectId }>('users');
+    const usersCollection = db.collection<Omit<User, 'id'> & { _id: ObjectId, points?: number }>('users');
     const user = await usersCollection.findOne({ email });
 
     if (!user) {
@@ -71,13 +69,8 @@ export async function signIn(input: { email: string, password: string }): Promis
     if (!isValidPassword) {
       return { success: false, error: 'Invalid email or password.' };
     }
-
-    // Here you would typically create a session (e.g., using JWT or next-auth)
-    // For this step, we'll just return success and basic user info.
-    // Session management would be the next logical step.
     
-    // revalidatePath('/'); // Or a specific auth page if relevant
-    return { success: true, user: { id: user._id.toHexString(), email: user.email } };
+    return { success: true, user: { id: user._id.toHexString(), email: user.email, points: user.points ?? 0 } };
 
   } catch (error) {
     console.error('Sign in error:', error);

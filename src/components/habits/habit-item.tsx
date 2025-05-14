@@ -29,6 +29,7 @@ interface HabitItemProps {
   onHabitClick?: (habit: Habit) => void;
   onEditHabit: (habit: Habit) => void;
   onDeleteHabit: (habit: Habit) => void;
+  onHabitUpdated: () => void; // Callback to refresh parent data
 }
 
 const getHabitTypeIcon = (frequency: HabitFrequency, name: string) => {
@@ -48,7 +49,7 @@ const getHabitTypeIcon = (frequency: HabitFrequency, name: string) => {
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabit, onDeleteHabit }: HabitItemProps) {
+export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabit, onDeleteHabit, onHabitUpdated }: HabitItemProps) {
   const [status, setStatus] = React.useState<'completed' | 'pending' | 'loading' | 'error'>('loading');
   const [isUpdating, setIsUpdating] = React.useState(false);
   const { toast } = useToast();
@@ -60,7 +61,7 @@ export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabi
     if (habit.frequency === 'weekly' && habit.specificDays && habit.specificDays.length > 0) {
       return habit.specificDays.includes(currentDayOfWeek);
     }
-    return true; // Daily, monthly, and generic weekly are always "actionable" for the given date logic
+    return true; 
   }, [habit.frequency, habit.specificDays, currentDayOfWeek]);
 
 
@@ -74,15 +75,11 @@ export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabi
       setStatus('loading');
       const effectiveDate = new Date(normalizedDateString);
       try {
-        // For weekly specific day habits, only fetch status if today is a target day.
-        // Otherwise, it's considered 'pending' or non-applicable for direct action on this HabitItem for *today*.
         let completed: boolean | undefined = undefined;
         if (habit.frequency === 'weekly' && habit.specificDays && habit.specificDays.length > 0) {
             if (habit.specificDays.includes(currentDayOfWeek)) {
                  completed = await getHabitCompletionStatus(userId, habit.id, effectiveDate);
             } else {
-                // Not a target day, so status is 'pending' (or could be a different visual state)
-                // For simplicity, treat as pending, action button will be disabled by isActionableToday
                 if(isActive) setStatus('pending');
                 return;
             }
@@ -109,7 +106,7 @@ export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabi
 
     setIsUpdating(true);
     const optimisticStatus = status === 'completed' ? 'pending' : 'completed';
-    setStatus(optimisticStatus);
+    // setStatus(optimisticStatus); // Optimistic update handled by parent refresh
 
     const effectiveDate = new Date(normalizedDateString);
     try {
@@ -117,21 +114,24 @@ export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabi
       if (result.success) {
         toast({
           title: `Habit ${optimisticStatus === 'completed' ? 'Completed' : 'Marked Pending'}`,
-          description: `"${habit.name}" status updated.`,
+          description: `"${habit.name}" status updated. ${result.awardedBadgeIds && result.awardedBadgeIds.length > 0 ? `You earned ${result.awardedBadgeIds.length} new badge(s)!` : ''}`,
         });
-         // Potentially update streak here or rely on parent refresh
+        onHabitUpdated(); // Trigger parent refresh to get new streak and badge data
       } else {
-        setStatus(status === 'completed' ? 'completed' : 'pending'); 
-        setStatus('error');
+        // Revert optimistic update if actual one failed
+        // setStatus(status === 'completed' ? 'completed' : 'pending'); 
+        setStatus('error'); // Or keep previous status and show error
         toast({ variant: 'destructive', title: 'Error Updating Habit', description: result.error || 'Could not update habit status.' });
       }
     } catch (error) {
       console.error(`Failed to record habit ${habit.id}:`, error);
-      setStatus(status === 'completed' ? 'completed' : 'pending'); 
+      // setStatus(status === 'completed' ? 'completed' : 'pending'); 
       setStatus('error');
       toast({ variant: 'destructive', title: 'Error Updating Habit', description: 'An unexpected error occurred.' });
     } finally {
       setIsUpdating(false);
+      // If not doing optimistic updates locally, status will be updated by parent re-fetch.
+      // If optimistic, ensure consistency or rely on parent re-fetch to correct.
     }
   };
 
@@ -204,9 +204,18 @@ export function HabitItem({ habit, currentDate, userId, onHabitClick, onEditHabi
           <p className="text-md font-semibold truncate" title={habit.name}>{habit.name}</p>
           <p className="text-xs text-muted-foreground capitalize">{displayFrequency}</p>
           {habit.currentStreak !== undefined && habit.currentStreak > 0 && (
-             <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                <Flame className="w-3 h-3"/> {habit.currentStreak} day streak
-             </span>
+             <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 cursor-default">
+                        <Flame className="w-3 h-3"/> {habit.currentStreak} {habit.frequency === 'daily' ? 'day' : habit.frequency === 'weekly' ? 'week' : 'month'} streak
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Current Streak: {habit.currentStreak} consecutive {habit.frequency === 'daily' ? 'days' : habit.frequency === 'weekly' ? 'weeks' : 'months'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
           )}
         </div>
         <div className="flex items-center gap-1">

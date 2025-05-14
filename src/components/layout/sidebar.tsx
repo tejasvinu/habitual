@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Plus, LogIn, UserPlus, Settings, LogOut, UserCircle, Loader2 as LoaderIcon } from 'lucide-react'; // Added LogOut, UserCircle, renamed Loader2 to LoaderIcon
+import { LayoutDashboard, Plus, LogIn, UserPlus, Settings, LogOut, UserCircle, Loader2 as LoaderIcon, Gem } from 'lucide-react'; 
 
 import { cn } from "@/lib/utils";
 import {
@@ -17,12 +17,12 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
+// import { Button } from '@/components/ui/button'; // Button import not used here
 import { Separator } from '@/components/ui/separator';
 import { AddHabitDialog } from '@/components/habits/add-habit-dialog';
 import React from 'react';
 import { useAuth } from '@/context/auth-context'; 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // AvatarImage not used
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -31,7 +31,8 @@ export function AppSidebar() {
   const { user, logoutUser, isLoading } = useAuth(); 
 
    const closeSidebar = () => {
-     if (isMobile && (state === 'expanded' || (useSidebar() as any).openMobile)) { // Check if sidebar is open on mobile
+     // @ts-ignore access internal openMobile state
+     if (isMobile && (state === 'expanded' || (useSidebar() ).openMobile)) { 
        toggleSidebar();
      }
    };
@@ -97,13 +98,25 @@ export function AppSidebar() {
             ) : user ? (
               <>
                 <SidebarMenuItem>
-                  <SidebarMenuButton tooltip={user.email} className="cursor-default hover:bg-transparent focus-visible:ring-0 active:bg-transparent">
-                    <Avatar className="h-7 w-7"> {/* Slightly larger avatar */}
+                   <SidebarMenuButton 
+                     tooltip={user.email || "User"} 
+                     className="cursor-default hover:bg-transparent focus-visible:ring-0 active:bg-transparent justify-start w-full"
+                     // Prevent click if it's not a link/button that should navigate
+                     onClick={(e) => e.preventDefault()} 
+                    >
+                    <Avatar className="h-7 w-7">
                       <AvatarFallback className="text-xs bg-primary/20 text-primary font-semibold">
                         {user.email ? user.email.substring(0, 2).toUpperCase() : <UserCircle />}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate max-w-[120px] text-sm">{user.email}</span>
+                    <div className={cn("flex flex-col items-start", state === 'collapsed' && 'hidden')}>
+                        <span className="truncate max-w-[120px] text-sm leading-tight">{user.email}</span>
+                        {user.points !== undefined && (
+                           <span className="text-xs text-muted-foreground flex items-center gap-1">
+                             <Gem className="w-3 h-3 text-primary"/> {user.points} pts
+                           </span>
+                        )}
+                    </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -157,7 +170,7 @@ export function AppSidebar() {
                       asChild 
                       isActive={pathname === '/settings'} 
                       tooltip="Settings"
-                      disabled={!user} // Disable if not logged in, page will redirect anyway
+                      disabled={!user} 
                     >
                     <Link href="/settings" onClick={closeSidebar}>
                         <Settings />
@@ -173,11 +186,3 @@ export function AppSidebar() {
     </>
   );
 }
-
-// Renamed Loader2 to avoid conflict if another Loader2 component is defined elsewhere
-// function LoaderIcon(props: React.SVGProps<SVGSVGElement>) {
-//   return (
-//     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-//   )
-// }
-

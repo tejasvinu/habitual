@@ -25,7 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        // Ensure points field exists and is a number, defaulting to 0 if not
+        setUser({ ...parsedUser, points: typeof parsedUser.points === 'number' ? parsedUser.points : 0 });
       } catch (error) {
         console.error("Failed to parse stored user:", error);
         localStorage.removeItem('currentUser');
@@ -35,14 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginUser = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('currentUser', JSON.stringify(userData));
+    // Ensure points field exists when setting user
+    const userWithPoints = { ...userData, points: typeof userData.points === 'number' ? userData.points : 0 };
+    setUser(userWithPoints);
+    localStorage.setItem('currentUser', JSON.stringify(userWithPoints));
   };
 
   const logoutUser = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
-    // Potentially call a server endpoint to invalidate session/token if using server-side sessions
     router.push('/login');
   };
 

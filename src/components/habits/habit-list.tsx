@@ -8,11 +8,12 @@ interface HabitListProps {
   currentDate: Date;
   userId: string; 
   onHabitClick?: (habit: Habit) => void;
-  onEditHabit: (habit: Habit) => void; // Add prop for editing
-  onDeleteHabit: (habit: Habit) => void; // Add prop for deleting
+  onEditHabit: (habit: Habit) => void; 
+  onDeleteHabit: (habit: Habit) => void; 
+  onHabitUpdated: () => void; // Add prop for general updates (like completion)
 }
 
-export function HabitList({ habits, currentDate, userId, onHabitClick, onEditHabit, onDeleteHabit }: HabitListProps) {
+export function HabitList({ habits, currentDate, userId, onHabitClick, onEditHabit, onDeleteHabit, onHabitUpdated }: HabitListProps) {
   if (!habits || habits.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 mt-4 border-2 border-dashed rounded-lg bg-card shadow-md">
@@ -37,11 +38,11 @@ export function HabitList({ habits, currentDate, userId, onHabitClick, onEditHab
             currentDate={currentDate} 
             userId={userId} 
             onHabitClick={onHabitClick}
-            onEditHabit={onEditHabit} // Pass edit handler
-            onDeleteHabit={onDeleteHabit} // Pass delete handler
+            onEditHabit={onEditHabit} 
+            onDeleteHabit={onDeleteHabit} 
+            onHabitUpdated={onHabitUpdated} // Pass update handler
         />
       ))}
     </div>
   );
 }
-
