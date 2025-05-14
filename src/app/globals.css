@@ -15,73 +15,73 @@ body {
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 210 40% 50%; /* Calming Blue */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 38 100% 50%; /* Orange (#FE9900) - Was Calming Blue */
+    --primary-foreground: 0 0% 100%; /* White (or dark text if orange is too light for white) */
     --secondary: 210 15% 90%; /* Slightly darker grey for secondary elements */
     --secondary-foreground: 240 10% 3.9%;
     --muted: 210 15% 90%;
     --muted-foreground: 240 5% 65%;
-    --accent: 38 100% 50%; /* Orange (#FE9900) */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 182 88% 78%; /* Light Cyan/Green (#98F5F9) - Was Orange */
+    --accent-foreground: 240 10% 3.9%; /* Dark text for light accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 210 10% 85%; /* Adjusted border */
     --input: 0 0% 100%; /* White input background */
-    --ring: 210 40% 50%; /* Primary blue for rings */
+    --ring: 38 100% 50%; /* Primary Orange for rings */
     --radius: 0.5rem;
 
-    --chart-1: 210 40% 50%; /* Primary Blue */
+    --chart-1: 38 100% 50%; /* Primary Orange */
     --chart-2: 145 63% 49%; /* Green for positive reinforcement */
-    --chart-3: 38 100% 50%; /* Accent Orange */
+    --chart-3: 182 88% 78%; /* Accent Light Cyan/Green */
     --chart-4: 0 84.2% 60.2%; /* Destructive Red */
     --chart-5: 260 60% 60%; /* Purple */
 
     --sidebar-background: 0 0% 100%; /* White sidebar */
     --sidebar-foreground: 240 10% 3.9%;
-    --sidebar-primary: 210 40% 50%; /* Primary Blue */
+    --sidebar-primary: 38 100% 50%; /* Primary Orange */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 17% 93%; /* Background Light Grey */
     --sidebar-accent-foreground: 240 10% 3.9%;
     --sidebar-border: 210 10% 85%;
-    --sidebar-ring: 210 40% 50%;
+    --sidebar-ring: 38 100% 50%;
   }
 
   .dark {
-    /* Dark Theme (Optional - Keeping defaults for now, can be customized later) */
+    /* Dark Theme */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 210 40% 60%; /* Lighter Blue for dark mode */
-    --primary-foreground: 0 0% 100%;
+    --primary: 38 100% 60%; /* Lighter Orange for dark mode */
+    --primary-foreground: 240 10% 3.9%; /* Dark text for lighter orange */
     --secondary: 240 5% 15%; /* Dark Grey */
     --secondary-foreground: 0 0% 98%;
     --muted: 240 5% 15%;
     --muted-foreground: 240 5% 65%;
-    --accent: 38 100% 60%; /* Lighter Orange */
-    --accent-foreground: 0 0% 100%;
+    --accent: 182 80% 70%; /* Slightly adjusted Light Cyan/Green for dark */
+    --accent-foreground: 240 10% 3.9%; /* Dark text */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5% 20%; /* Adjusted border */
     --input: 240 5% 15%; /* Dark input background */
-    --ring: 210 40% 60%; /* Primary blue for rings */
+    --ring: 38 100% 60%; /* Primary Orange for rings */
 
-    --chart-1: 210 40% 60%;
+    --chart-1: 38 100% 60%;
     --chart-2: 145 55% 55%;
-    --chart-3: 38 100% 60%;
+    --chart-3: 182 80% 70%;
     --chart-4: 0 72% 51%;
     --chart-5: 260 50% 65%;
 
     --sidebar-background: 240 10% 6%; /* Darker Sidebar */
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 210 40% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 38 100% 60%;
+    --sidebar-primary-foreground: 240 10% 3.9%;
     --sidebar-accent: 240 5% 15%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 5% 20%;
-    --sidebar-ring: 210 40% 60%;
+    --sidebar-ring: 38 100% 60%;
   }
 }
 

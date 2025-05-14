@@ -6,11 +6,13 @@ import { SmilePlus } from 'lucide-react';
 interface HabitListProps {
   habits: Habit[];
   currentDate: Date;
-  userId: string; // Add userId prop
-  onHabitClick?: (habit: Habit) => void; // Prop to handle item click
+  userId: string; 
+  onHabitClick?: (habit: Habit) => void;
+  onEditHabit: (habit: Habit) => void; // Add prop for editing
+  onDeleteHabit: (habit: Habit) => void; // Add prop for deleting
 }
 
-export function HabitList({ habits, currentDate, userId, onHabitClick }: HabitListProps) {
+export function HabitList({ habits, currentDate, userId, onHabitClick, onEditHabit, onDeleteHabit }: HabitListProps) {
   if (!habits || habits.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 mt-4 border-2 border-dashed rounded-lg bg-card shadow-md">
@@ -27,14 +29,16 @@ export function HabitList({ habits, currentDate, userId, onHabitClick }: HabitLi
   }
 
   return (
-    <div className="space-y-4"> {/* Increased space-y from 3 to 4 for better separation */}
+    <div className="space-y-4"> 
       {habits.map((habit) => (
         <HabitItem 
             key={habit.id} 
             habit={habit} 
             currentDate={currentDate} 
-            userId={userId} // Pass userId
-            onHabitClick={onHabitClick} // Pass click handler
+            userId={userId} 
+            onHabitClick={onHabitClick}
+            onEditHabit={onEditHabit} // Pass edit handler
+            onDeleteHabit={onDeleteHabit} // Pass delete handler
         />
       ))}
     </div>

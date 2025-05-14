@@ -8,7 +8,7 @@ import { AppSidebar } from '@/components/layout/sidebar';
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, UserCircle, Palette, DatabaseZap, LogOut, KeyRound, Edit3, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
+import { Loader2, UserCircle, Palette, DatabaseZap, LogOut, KeyRound, Edit3, AlertTriangle, Settings as SettingsIcon, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,12 +21,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { exportUserData } from '@/lib/actions/habits';
 
 
 export default function SettingsPage() {
   const { user, isLoading: authIsLoading, logoutUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [isExporting, setIsExporting] = React.useState(false);
 
   React.useEffect(() => {
     if (!authIsLoading && !user) {
@@ -44,7 +46,6 @@ export default function SettingsPage() {
 
   const handleLogout = () => {
     logoutUser();
-    // router.push('/login') is handled by logoutUser in AuthContext
   };
 
   const handleChangePassword = () => {
@@ -53,9 +54,40 @@ export default function SettingsPage() {
   const handleUpdateProfile = () => {
     toast({ title: "Feature Coming Soon", description: "Profile update functionality is not yet implemented." });
   };
-  const handleExportData = () => {
-    toast({ title: "Feature Coming Soon", description: "Data export functionality is not yet implemented." });
+  
+  const handleExportData = async () => {
+    if (!user) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to export data." });
+        return;
+    }
+    setIsExporting(true);
+    try {
+        const result = await exportUserData(user.id);
+        if (result.success && result.csvData) {
+            const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) { // feature detection
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `habitual_data_${user.email}_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+            toast({ title: "Data Exported", description: "Your habit data has been prepared for download." });
+        } else {
+            toast({ variant: "destructive", title: "Export Failed", description: result.error || "Could not export your data." });
+        }
+    } catch (error) {
+        console.error("Data export error:", error);
+        toast({ variant: "destructive", title: "Export Error", description: "An unexpected error occurred during data export." });
+    } finally {
+        setIsExporting(false);
+    }
   };
+
   const handleDeleteAccount = () => {
     toast({ variant: "destructive", title: "Account Deletion (Not Implemented)", description: "This critical action requires backend implementation and is not yet functional." });
   };
@@ -116,15 +148,6 @@ export default function SettingsPage() {
                  <div className="p-4 bg-muted/50 rounded-lg text-center border border-dashed border-border">
                     <p className="text-sm text-foreground">Theme settings and display options are coming soon!</p>
                 </div>
-                {/* Example: For future theme toggle
-                <div className="mt-4 flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                        <label htmlFor="dark-mode" className="text-sm font-medium">Dark Mode</label>
-                        <p className="text-xs text-muted-foreground">Toggle between light and dark themes.</p>
-                    </div>
-                    <Switch id="dark-mode" disabled /> 
-                </div>
-                */}
               </CardContent>
             </Card>
 
@@ -140,8 +163,9 @@ export default function SettingsPage() {
                 <CardDescription className="mb-4">
                   Manage your application data and account.
                 </CardDescription>
-                <Button variant="outline" className="w-full justify-start text-sm" onClick={handleExportData}>
-                    Export My Data
+                <Button variant="outline" className="w-full justify-start text-sm" onClick={handleExportData} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {isExporting ? "Exporting..." : "Export My Data"}
                 </Button>
 
                 <AlertDialog>
