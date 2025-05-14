@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts';
-import { format, subDays, startOfWeek } from 'date-fns'; // Removed addWeeks, isSameWeek as they are not used here
+import { format, subDays, startOfWeek, isSameDay as dfIsSameDay, addDays } from 'date-fns'; // Import isSameDay as dfIsSameDay and addDays
 
 import {
   Card,
@@ -79,7 +79,7 @@ export function HabitProgressChart({ habits, logs, userId }: HabitProgressChartP
                          // Only count days from habit creation onwards and within the current week
                          if(dayInWeek >= habitCreatedAt && dayInWeek <= today) {
                             weeklyData[weekLabel].total += 1;
-                            const dayLog = habitLogs.find(log => dfIsSameDay(log.date, dayInWeek));
+                            const dayLog = habitLogs.find(log => dfIsSameDay(new Date(log.date), dayInWeek)); // Use dfIsSameDay and ensure log.date is Date object
                             if (dayLog?.completed) {
                                 weeklyData[weekLabel].completed += 1;
                             }
@@ -90,7 +90,7 @@ export function HabitProgressChart({ habits, logs, userId }: HabitProgressChartP
                     if (currentIterationWeekStart >= startOfWeek(habitCreatedAt, { weekStartsOn: 0 }) && currentIterationWeekStart <= today) {
                          weeklyData[weekLabel].total += 1;
                          // Log date for weekly habits should be the start of the week
-                         const weekLog = habitLogs.find(log => dfIsSameDay(log.date, currentIterationWeekStart));
+                         const weekLog = habitLogs.find(log => dfIsSameDay(new Date(log.date), currentIterationWeekStart)); // Use dfIsSameDay and ensure log.date is Date object
                          if (weekLog?.completed) {
                              weeklyData[weekLabel].completed += 1;
                          }
@@ -209,9 +209,16 @@ export function HabitProgressChart({ habits, logs, userId }: HabitProgressChartP
   );
 }
 
-// Helper to add days to a date
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
+// Helper to add days to a date is already imported from date-fns
+// function addDays(date: Date, days: number): Date {
+//   const result = new Date(date);
+//   result.setDate(result.getDate() + days);
+//   return result;
+// }
+// Helper to check if two dates are the same day is already imported as dfIsSameDay
+// function isSameDay(date1: Date, date2: Date): boolean {
+//     return date1.getFullYear() === date2.getFullYear() &&
+//            date1.getMonth() === date2.getMonth() &&
+//            date1.getDate() === date2.getDate();
+// }
+
