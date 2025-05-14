@@ -24,7 +24,7 @@ import type { Habit, HabitLog } from '@/lib/types';
 
 function DashboardSkeleton() {
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
             <div className="space-y-6">
                 <Skeleton className="h-8 w-1/2 mb-4" />
                 <div className="space-y-3">
@@ -117,7 +117,7 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-auto p-4 md:p-6">
            <Suspense fallback={<DashboardSkeleton />}>
             {dataIsLoading ? <DashboardSkeleton /> : (
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
                     <div className="space-y-6">
                         <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Habits</h2>
                         {user && <HabitList habits={habits} currentDate={new Date()} userId={user.id} onHabitClick={handleHabitItemClick} />}
@@ -132,6 +132,11 @@ export default function DashboardPage() {
                                 Click on a habit to see personalized tips.
                             </div>
                         )}
+                         {!user && habits.length === 0 && (
+                            <div className="p-4 text-center text-muted-foreground bg-card rounded-lg shadow-sm">
+                                Login to track habits and see insights.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -141,3 +146,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
