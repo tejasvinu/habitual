@@ -79,7 +79,7 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4"> {/* Adjusted space-y from 6 to 4 */}
         <FormField
           control={form.control}
           name="email"
@@ -106,7 +106,7 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full !mt-6" disabled={isSubmitting}> {/* Added !mt-6 for specific spacing */}
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

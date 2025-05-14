@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react'; // Changed LogIn to UserPlus for semantic correctness
 
 import { Button } from '@/components/ui/button';
 import {
@@ -65,7 +65,7 @@ export function SignUpForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4"> {/* Adjusted space-y from 6 to 4 */}
         <FormField
           control={form.control}
           name="email"
@@ -92,7 +92,7 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full !mt-6" disabled={isSubmitting}> {/* Added !mt-6 for specific spacing */}
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -100,7 +100,7 @@ export function SignUpForm() {
             </>
           ) : (
             <>
-              <LogIn className="mr-2 h-4 w-4" />
+              <UserPlus className="mr-2 h-4 w-4" /> {/* Changed icon */}
               Sign Up
             </>
           )}
