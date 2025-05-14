@@ -13,7 +13,7 @@ import { HabitSuggestions } from '@/components/habits/habit-suggestions';
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddHabitDialog } from '@/components/habits/add-habit-dialog';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2, Info } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import type { Habit, HabitLog } from '@/lib/types';
 
@@ -26,17 +26,21 @@ function DashboardSkeleton() {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
             <div className="space-y-6">
-                <Skeleton className="h-8 w-1/2 mb-4" />
-                <div className="space-y-3">
-                    <Skeleton className="h-20 w-full rounded-xl" />
-                    <Skeleton className="h-20 w-full rounded-xl" />
+                <div className="pb-2 mb-4 border-b">
+                    <Skeleton className="h-7 w-1/2" />
                 </div>
-                 <Skeleton className="h-[280px] w-full rounded-lg" />
+                <div className="space-y-3">
+                    <Skeleton className="h-24 w-full rounded-xl" /> {/* Adjusted height for HabitItem */}
+                    <Skeleton className="h-24 w-full rounded-xl" />
+                </div>
+                 <Skeleton className="h-[280px] w-full rounded-lg" /> {/* For HabitSuggestions */}
             </div>
             <div className="space-y-6">
-                 <Skeleton className="h-8 w-1/3 mb-4" />
-                 <Skeleton className="h-[340px] w-full rounded-lg" />
-                 <Skeleton className="h-[240px] w-full rounded-lg" />
+                 <div className="pb-2 mb-4 border-b">
+                    <Skeleton className="h-7 w-1/3" />
+                </div>
+                 <Skeleton className="h-[300px] w-full rounded-lg" /> {/* For HabitProgressChart */}
+                 <Skeleton className="h-[240px] w-full rounded-lg" /> {/* For HabitTipsDisplay */}
             </div>
         </div>
     );
@@ -86,7 +90,7 @@ export default function DashboardPage() {
 
   if (authIsLoading || (!user && !authIsLoading)) { // Show loader if auth is loading or redirecting
     return (
-      <div className="flex min-h-screen w-full items-center justify-center">
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -99,10 +103,10 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
       <SidebarInset className="flex flex-col">
-        <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
+        <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background/80 px-4 backdrop-blur-md">
            <SidebarTrigger className="md:hidden" />
           <h1 className="flex-1 text-xl font-semibold tracking-tight">Dashboard</h1>
            <div className="ml-auto">
@@ -117,24 +121,30 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-auto p-4 md:p-6">
            <Suspense fallback={<DashboardSkeleton />}>
             {dataIsLoading ? <DashboardSkeleton /> : (
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Habits</h2>
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="pb-2 mb-4 border-b">
+                            <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Habits</h2>
+                        </div>
                         {user && <HabitList habits={habits} currentDate={new Date()} userId={user.id} onHabitClick={handleHabitItemClick} />}
                         {user && <HabitSuggestions existingHabits={habits} userId={user.id} />}
                     </div>
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-semibold tracking-tight">Insights</h2>
+                    <div className="lg:col-span-1 space-y-6">
+                         <div className="pb-2 mb-4 border-b">
+                            <h2 className="text-2xl font-semibold tracking-tight">Insights</h2>
+                        </div>
                         {user && <HabitProgressChart habits={habits} logs={logs} userId={user.id} />}
                         {user && selectedHabitForTips && <HabitTipsDisplay habit={selectedHabitForTips} userId={user.id} />}
                         {user && !selectedHabitForTips && habits.length > 0 && (
-                            <div className="p-4 text-center text-muted-foreground bg-card rounded-lg shadow-sm">
-                                Click on a habit to see personalized tips.
+                            <div className="p-6 text-center text-muted-foreground bg-card rounded-lg shadow-sm border border-dashed border-border flex flex-col items-center gap-2">
+                                <Info className="w-6 h-6 text-primary"/>
+                                <span>Click on a habit to see personalized tips.</span>
                             </div>
                         )}
-                         {!user && habits.length === 0 && (
-                            <div className="p-4 text-center text-muted-foreground bg-card rounded-lg shadow-sm">
-                                Login to track habits and see insights.
+                         {!user && habits.length === 0 && !dataIsLoading && ( // ensure not to show if data is loading
+                            <div className="p-6 text-center text-muted-foreground bg-card rounded-lg shadow-sm border border-dashed border-border flex flex-col items-center gap-2">
+                                 <Info className="w-6 h-6 text-primary"/>
+                                <span>Login to track habits and see insights.</span>
                             </div>
                         )}
                     </div>
