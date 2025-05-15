@@ -3,10 +3,11 @@
 
 import { getDb } from '@/lib/mongodb';
 import type { UserBadge, Habit, HabitLog } from '@/lib/types';
-import { BADGE_DEFINITIONS } from '@/lib/gamification/badges';
+import { BADGE_DEFINITIONS } from '@/lib/gamification/badge-definitions'; // Updated import
 import { ObjectId } from 'mongodb';
 import { revalidatePath } from 'next/cache';
 import { getCurrentStreak as getStreakForHabit, getHabits as getAllUserHabits, getHabitLogs as getAllUserLogs } from './habits';
+// hasBadge is now imported by badge-definitions.ts criteria functions
 
 export async function awardPoints(userId: string, points: number): Promise<void> {
     if (!userId || points <= 0) return;
@@ -15,10 +16,8 @@ export async function awardPoints(userId: string, points: number): Promise<void>
     await usersCollection.updateOne(
         { _id: new ObjectId(userId) },
         { $inc: { points: points } },
-        { upsert: true } // Upsert in case points field doesn't exist
+        { upsert: true } 
     );
-    // Revalidate relevant paths if points are displayed and server-rendered
-    // e.g., revalidatePath('/profile') or revalidatePath('/') if sidebar shows points from server
 }
 
 export async function checkAndAwardBadges(userId: string, newlyCompletedHabit: Habit, completedDate: Date): Promise<string[]> {
@@ -33,29 +32,42 @@ export async function checkAndAwardBadges(userId: string, newlyCompletedHabit: H
     const currentStreakForNewlyCompletedHabit = await getStreakForHabit(userId, newlyCompletedHabit.id);
 
     for (const badgeDef of BADGE_DEFINITIONS) {
-        // Special handling for badges like 'habit_master_30' that might be dynamic
-        if (badgeDef.id === 'habit_master_30' && (currentStreakForNewlyCompletedHabit || 0) >= 30) {
-            const dynamicBadgeId = `habit_master_30_on_${newlyCompletedHabit.id}`;
-            const alreadyHasThisMasteryBadge = await userBadgesCollection.findOne({ userId: new ObjectId(userId), badgeId: dynamicBadgeId });
-            if (!alreadyHasThisMasteryBadge) {
-                 await userBadgesCollection.insertOne({
-                    userId: new ObjectId(userId),
-                    badgeId: dynamicBadgeId,
-                    originalBadgeId: badgeDef.id, // Link to definition
-                    awardedAt: new Date(),
-                    habitName: newlyCompletedHabit.name, // Store habit name for display
+        // Special handling for badges like 'habit_master_30' that are dynamic per habit
+        if (badgeDef.id === 'habit_master_30') {
+            let baseCriteriaMet = false;
+            if (typeof badgeDef.criteria === 'function') {
+                baseCriteriaMet = await badgeDef.criteria({
+                    userId, // Though criteria for habit_master_30 doesn't use userId directly, pass for consistency
+                    habit: newlyCompletedHabit,
+                    streak: currentStreakForNewlyCompletedHabit,
+                    // Pass other params if this specific criteria needed them
                 });
-                if (badgeDef.points) {
-                    await awardPoints(userId, badgeDef.points);
-                }
-                awardedBadgeIdsThisCheck.push(dynamicBadgeId);
             }
-            continue; // Skip normal processing for this special badge
+
+            if (baseCriteriaMet) {
+                const dynamicBadgeId = `habit_master_30_on_${newlyCompletedHabit.id}`;
+                const alreadyHasThisMasteryBadge = await userBadgesCollection.findOne({ userId: new ObjectId(userId), badgeId: dynamicBadgeId });
+
+                if (!alreadyHasThisMasteryBadge) {
+                     await userBadgesCollection.insertOne({
+                        userId: new ObjectId(userId),
+                        badgeId: dynamicBadgeId, // This is the instance ID for this specific habit mastery
+                        originalBadgeId: badgeDef.id, // Link to the generic definition
+                        awardedAt: new Date(),
+                        habitName: newlyCompletedHabit.name, 
+                    });
+                    if (badgeDef.points) {
+                        await awardPoints(userId, badgeDef.points);
+                    }
+                    awardedBadgeIdsThisCheck.push(dynamicBadgeId);
+                }
+            }
+            continue; 
         }
 
         // Normal badge processing
-        const alreadyHasBadge = await userBadgesCollection.findOne({ userId: new ObjectId(userId), badgeId: badgeDef.id });
-        if (alreadyHasBadge) continue;
+        const alreadyHasThisDefinitionBadge = await userBadgesCollection.findOne({ userId: new ObjectId(userId), badgeId: badgeDef.id });
+        if (alreadyHasThisDefinitionBadge) continue;
 
         let criteriaMet = false;
         if (typeof badgeDef.criteria === 'function') {
@@ -72,7 +84,7 @@ export async function checkAndAwardBadges(userId: string, newlyCompletedHabit: H
         if (criteriaMet) {
             await userBadgesCollection.insertOne({
                 userId: new ObjectId(userId),
-                badgeId: badgeDef.id,
+                badgeId: badgeDef.id, // Use the definition's ID for non-dynamic badges
                 awardedAt: new Date(),
             });
             if (badgeDef.points) {
@@ -100,19 +112,21 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
         const userBadge: UserBadge = {
             id: doc._id.toHexString(),
             userId: doc.userId.toHexString(),
-            badgeId: doc.badgeId as string, // The specific ID, could be dynamic like "habit_master_30_on_habitXYZ"
+            badgeId: doc.badgeId as string, 
             awardedAt: new Date(doc.awardedAt),
         };
-        // If it's a dynamic badge, we might want to add more info from the original definition
+        
         if (doc.originalBadgeId && typeof doc.originalBadgeId === 'string') {
             const originalDef = BADGE_DEFINITIONS.find(d => d.id === doc.originalBadgeId);
             if (originalDef) {
-                // @ts-ignore
+                // @ts-ignore - Dynamically adding properties for display
                 userBadge.name = `${originalDef.name} (${doc.habitName || 'Habit'})`;
                 // @ts-ignore
                 userBadge.description = originalDef.description;
                 // @ts-ignore
                 userBadge.icon = originalDef.icon;
+                // @ts-ignore
+                userBadge.points = originalDef.points;
             }
         }
         return userBadge;
@@ -130,6 +144,7 @@ export async function checkAndAwardCreationBadges(userId: string): Promise<void>
         if (alreadyHasBadge) continue;
 
         if (typeof badgeDef.criteria === 'function') {
+            // Pass habitsCount directly as it's already fetched
             const criteriaMet = await badgeDef.criteria({ userId, habitsCount: allHabitsForUser.length });
             if (criteriaMet) {
                 await userBadgesCollection.insertOne({

@@ -1,7 +1,7 @@
 
 'use client';
 import type { UserBadge } from '@/lib/types';
-import { BADGE_DEFINITIONS } from '@/lib/gamification/badges';
+import { BADGE_DEFINITIONS } from '@/lib/gamification/badge-definitions';
 import { Card, CardTitle, CardDescription } from '@/components/ui/card'; // Removed unused CardHeader, CardContent
 import { BadgeIcon } from './badge-icon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
