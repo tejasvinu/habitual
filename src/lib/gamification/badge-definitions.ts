@@ -1,7 +1,8 @@
+
 // src/lib/gamification/badge-definitions.ts
 // NO 'use server' here
 import type { BadgeDefinition } from '@/lib/types';
-import { hasBadge } from './badges'; // Import hasBadge from the 'use server' file
+import { hasBadge } from './badges'; 
 
 export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     {
@@ -10,7 +11,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
         description: 'Completed your very first habit task!',
         icon: 'Footprints',
         points: 25,
-        criteria: async ({ userId, completedLogCountForUser }) => {
+        criteria: async ({ userId, completedLogCountForUser, currentUserPoints }) => { // Added currentUserPoints
             if (await hasBadge(userId, 'first_habit_completed')) return false;
             return completedLogCountForUser === 1;
         }
@@ -21,10 +22,8 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
         description: 'Maintained a 7-day streak on any daily habit.',
         icon: 'Flame',
         points: 50,
-        criteria: async ({ userId, habit, streak }) => {
+        criteria: async ({ userId, habit, streak, currentUserPoints }) => { // Added currentUserPoints
             if (!habit || habit.frequency !== 'daily') return false;
-            // Check if user specifically has *this* badge definition ID.
-            // The gamification action can handle preventing re-awarding if needed more broadly.
             if (await hasBadge(userId, 'daily_streak_7')) return false;
             return (streak || 0) >= 7;
         }
@@ -35,7 +34,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
         description: 'Maintained a 4-week streak on any weekly habit.',
         icon: 'ShieldCheck',
         points: 75,
-        criteria: async ({ userId, habit, streak }) => {
+        criteria: async ({ userId, habit, streak, currentUserPoints }) => { // Added currentUserPoints
             if (!habit || habit.frequency !== 'weekly') return false;
             if (await hasBadge(userId, 'weekly_streak_4')) return false;
             return (streak || 0) >= 4;
@@ -47,22 +46,55 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
         description: 'Created at least 3 habits.',
         icon: 'ListPlus',
         points: 30,
-        criteria: async ({ userId, habitsCount }) => {
+        criteria: async ({ userId, habitsCount, currentUserPoints }) => { // Added currentUserPoints
             if (await hasBadge(userId, 'habit_creator_3')) return false;
             return (habitsCount || 0) >= 3;
         }
     },
     {
-        id: 'habit_master_30', // This is the ID of the *definition*.
+        id: 'habit_master_30', 
         name: 'Habit Master',
         description: 'Achieved a 30-period streak on any habit.',
         icon: 'Crown',
         points: 150,
-        criteria: async ({ habit, streak }) => { // userId is implicitly available via hasBadge if needed
+        criteria: async ({ userId, habit, streak, currentUserPoints }) => { // Added currentUserPoints, userId for consistency though not strictly for hasBadge for dynamic one
             if (!habit) return false;
-            // This criteria just determines if the base condition (30 period streak) is met.
-            // The checkAndAwardBadges function handles the dynamic instance creation and checking.
             return (streak || 0) >= 30;
+        }
+    },
+    // New Badges
+    {
+        id: 'habit_explorer_5',
+        name: 'Habit Explorer',
+        description: "You've branched out and created 5 different habits!",
+        icon: 'Compass',
+        points: 40,
+        criteria: async ({ userId, habitsCount, currentUserPoints }) => { // Added currentUserPoints
+            if (await hasBadge(userId, 'habit_explorer_5')) return false;
+            return (habitsCount || 0) >= 5;
+        }
+    },
+    {
+        id: 'completionist_50',
+        name: 'Steady Progress',
+        description: 'Logged 50 habit completions. Keep it up!',
+        icon: 'TrendingUp', // Was BarChartBig, changed to TrendingUp for more common icon
+        points: 60,
+        criteria: async ({ userId, completedLogCountForUser, currentUserPoints }) => { // Added currentUserPoints
+            if (await hasBadge(userId, 'completionist_50')) return false;
+            return (completedLogCountForUser || 0) >= 50;
+        }
+    },
+    {
+        id: 'point_collector_250',
+        name: 'Point Hoarder',
+        description: 'Accumulated 250 points!',
+        icon: 'Coins',
+        points: 25, // Points awarded *for* achieving this badge
+        criteria: async ({ userId, currentUserPoints }) => {
+            if (await hasBadge(userId, 'point_collector_250')) return false;
+            return (currentUserPoints || 0) >= 250;
         }
     }
 ];
+

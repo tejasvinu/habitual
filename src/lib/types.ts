@@ -39,6 +39,7 @@ export interface BadgeDefinition {
     habitsCount?: number; // Total number of habits for the user
     allUserLogs?: HabitLog[]; // All logs for the user
     completedLogCountForUser?: number; // Total completed logs for the user
+    currentUserPoints?: number; // User's current points total
   }) => Promise<boolean> | boolean;
   points?: number; // Points awarded for this badge
 }
@@ -49,3 +50,4 @@ export interface UserBadge {
   badgeId: string; // Corresponds to BadgeDefinition.id
   awardedAt: Date;
 }
+
